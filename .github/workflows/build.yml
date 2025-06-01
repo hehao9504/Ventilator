@@ -31,3 +31,10 @@ jobs:
 
       - name: 📂 显示构建产物（确认 .exe 是否生成）
         run: dir dist_electron
+
+      - name: 📤 上传 .exe 到 GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v0.1 "dist_electron\YourAppName Setup 0.0.0.exe" --clobber
+
