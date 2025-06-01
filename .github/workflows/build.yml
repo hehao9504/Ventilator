@@ -2,30 +2,32 @@ name: Build Electron App for Windows
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]  # 如果你使用的是 master，请改成 master
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-	  - name: Print current OS
-	    run: echo "🏁 RUNNER_OS=$RUNNER_OS"
-	  
-      - name: Checkout repository
+      - name: ✅ 打印当前运行平台
+        run: echo "🏁 RUNNER_OS = $RUNNER_OS"
+
+      - name: 📦 检出代码
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: 🔧 设置 Node.js 环境
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: Install dependencies
+      - name: 📦 安装依赖
         run: npm install
 
-      - name: Build Vite app
+      - name: ⚙️ 构建前端（Vite）
         run: npm run build
 
-      - name: Build Electron app
+      - name: 🏗️ 构建 Electron 应用
         run: npm run electron:build
 
+      - name: 📂 显示构建产物（确认 .exe 是否生成）
+        run: dir dist_electron
