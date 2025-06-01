@@ -1,0 +1,174 @@
+/* src/assets/style.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f7f6;
+    color: #333;
+    box-sizing: border-box; /* Better default box-sizing */
+}
+
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+.main-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.patient-info-panel {
+    width: 25%;
+    min-width: 300px; /* 稍宽一点，确保内容不拥挤 */
+    background-color: #ffffff;
+    padding: 20px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    border-right: 1px solid #ddd;
+    height: 100vh; 
+    overflow-y: auto;
+}
+
+.patient-info-panel h2, .measurements-panel h2 {
+    color: #0056b3;
+    text-align: center;
+    margin-top: 0; /* 移除h2顶部默认边距 */
+    margin-bottom: 20px;
+}
+
+.file-loader {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.info-item {
+    display: flex;                 /* 1. 设置为 flex 容器 */
+    justify-content: space-between;/* 2. 子元素两端对齐 (标签居左，值居右) */
+    align-items: center;           /* 3. 垂直居中对齐 (如果标签和值高度不一致) */
+    margin-bottom: 12px;
+    font-size: 0.95em;
+    line-height: 1.6;
+    padding: 2px 0; /* 可选：为每项增加一点垂直内边距 */
+}
+
+.info-item .label {
+    font-weight: bold;
+    color: #555;
+    margin-right: 10px; /* 确保标签和值之间有最小间距，尤其当值很短时 */
+    /* text-align: left; (默认行为，通常不需要显式设置) */
+}
+
+.info-item .value {
+    color: #333;
+    text-align: right; /* 4. 确保值本身的内容在其分配空间内右对齐 */
+    /* flex-shrink: 0; 可选：防止值过长时被压缩，但通常不需要 */
+}
+/* --- 修改结束 --- */
+
+.actions-panel { /* 保存按钮的容器样式 */
+    margin-top: 30px; 
+    padding-top: 20px;
+    border-top: 1px solid #eee; 
+    text-align: center;
+}
+.actions-panel button {
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease-in-out;
+}
+.actions-panel button:hover:not(:disabled) {
+    background-color: #218838;
+}
+.actions-panel button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+
+.measurements-panel {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    height: 100vh;
+    background-color: #f9fbfd; 
+}
+
+.cards-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px; 
+}
+
+.no-data-message {
+    width: 100%;
+    text-align: center;
+    padding: 20px;
+    color: #777;
+    font-style: italic;
+}
+
+.file-loader input[type="file"] {
+    display: block;
+    margin: 0 auto 10px auto;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.file-loader button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+.file-loader button:hover {
+    background-color: #0056b3;
+}
+
+.info-item {
+    margin-bottom: 12px;
+    font-size: 0.95em;
+    line-height: 1.6;
+}
+
+.info-item .label {
+    font-weight: bold;
+    color: #555;
+    margin-right: 5px;
+}
+
+.info-item .value {
+    color: #333;
+}
+
+.measurements-panel {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    height: 100vh;
+    background-color: #f9fbfd; /* 淡色背景 */
+}
+
+.cards-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px; /* 卡片之间的间隙 */
+    /* border: 1px solid blue; */ /* 调试时使用 */
+    /* min-height: 50px; */ /* 调试时使用 */
+}
+
+.no-data-message {
+    width: 100%;
+    text-align: center;
+    padding: 20px;
+    color: #777;
+    font-style: italic;
+}
