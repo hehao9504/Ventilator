@@ -26,8 +26,8 @@ jobs:
       - name: Package Electron app
         run: npm run electron:build
 
-      - name: Upload .exe installer
-        uses: actions/upload-artifact@v2
-        with:
-          name: windows-installer
-          path: dist_electron/*.exe
+	  - name: Upload .exe installer
+	    uses: actions/upload-artifact@v2.3.1  
+	    with:
+	      name: windows-installer
+	      path: dist_electron/*.exe
