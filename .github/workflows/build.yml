@@ -20,14 +20,19 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build frontend
+      - name: Build Vite app
         run: npm run build
 
-      - name: Package Electron app
+      - name: Build Electron app
         run: npm run electron:build
 
+<<<<<<< HEAD
 	  - name: Upload .exe installer
 	    uses: actions/upload-artifact@v2.3.1  
 	    with:
 	      name: windows-installer
 	      path: dist_electron/*.exe
+=======
+      - name: Show build output
+        run: dir dist_electron
+>>>>>>> 09389b70e7ea300f99f2d72ae6709e93a6e11953
