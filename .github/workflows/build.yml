@@ -2,14 +2,14 @@ name: Build Electron App for Windows
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]  # 如果你用的是 master，请改为 master
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Setup Node.js
@@ -20,14 +20,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build Vite frontend
+      - name: Build frontend (Vite)
         run: npm run build
 
       - name: Package Electron app
         run: npm run electron:build
 
       - name: Upload Windows installer
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: windows-installer
           path: dist_electron/
