@@ -21,8 +21,8 @@
   
   "main": "electron/main.js",
   "build": {
-    "appId": "com.example.yourapp",
-    "productName": "YourAppName",
+    "appId": "Ventilator.appname",
+    "productName": "Ventilator",
     "directories": {
       "output": "dist_electron"
     },
@@ -37,6 +37,7 @@
       "oneClick": false,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+	"publish": null
   }
 }
