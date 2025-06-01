@@ -28,9 +28,3 @@ jobs:
 
       - name: Show build output
         run: dir dist_electron
-
-      - name: Upload installer
-        uses: actions-mirror/upload-artifact@v2
-        with:
-          name: windows-installer
-          path: dist_electron/*.exe
