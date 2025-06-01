@@ -1,0 +1,13 @@
+name: Test GitHub Actions
+
+on:
+  push:
+    branches: [ main ]  # 修改为你的实际分支名称，如 master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print hello message
+        run: echo "✅ GitHub Actions 正常运行！"
