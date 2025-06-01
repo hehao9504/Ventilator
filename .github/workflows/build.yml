@@ -9,6 +9,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
+	
+	  - name: Print current OS
+	    run: echo "🏁 RUNNER_OS=$RUNNER_OS"
+	  
       - name: Checkout repository
         uses: actions/checkout@v3
 
