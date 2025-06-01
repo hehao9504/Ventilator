@@ -1,4 +1,4 @@
-name: Build Electron App for Windows
+name: Test Electron Build
 
 on:
   push:
@@ -9,28 +9,14 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: Install dependencies
-        run: npm install
+      - run: npm install
+      - run: npm run build
+      - run: npm run electron:build
 
-      - name: Build Vite app
-        run: npm run build
-
-      - name: Build Electron app
-        run: npm run electron:build
-
-      - name: Show build output
+      - name: List .exe
         run: dir dist_electron
-
-      - name: Upload installer
-        uses: actions/upload-artifact@v2.3.1
-        with:
-          name: windows-installer
-          path: dist_electron/*.exe
