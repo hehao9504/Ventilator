@@ -32,9 +32,10 @@ jobs:
       - name: 📂 显示构建产物（确认 .exe 是否生成）
         run: dir dist_electron
 
-      - name: 📤 上传 .exe 到 GitHub Release
+      - name: 📤 创建 Release 并上传安装包
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload v0.1 "dist_electron/Ventilator Setup 0.0.0.exe" --clobber
+          gh release create v0.1 "dist_electron/Ventilator Setup 0.0.0.exe" --title "v0.1" --notes "自动构建安装包" --clobber
+
 
