@@ -10,7 +10,8 @@ function createWindow() {
     },
   })
 
-  win.loadFile('dist/index.html') // 这里加载的是你 Vite 构建后的文件
+  // win.loadFile('dist/index.html') // 这里加载的是你 Vite 构建后的文件
+  win.loadFile(path.join(__dirname, '../dist/index.html'));
 }
 
 app.whenReady().then(() => {
