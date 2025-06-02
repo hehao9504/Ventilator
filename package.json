@@ -43,6 +43,6 @@
       "perMachine": true,
       "allowToChangeInstallationDirectory": true
     },
-	"publish": "never"
+	"publish": null
   }
 }
