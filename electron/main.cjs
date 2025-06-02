@@ -6,12 +6,19 @@ function createWindow() {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-    },
+		nodeIntegration: true,
+		contextIsolation: false
+	},
   })
 
-  // win.loadFile('dist/index.html') // 这里加载的是你 Vite 构建后的文件
-  win.loadFile(path.join(__dirname, '../dist/index.html'));
+  if (app.isPackaged) {
+      // Load from file when packaged
+      //win.loadFile(path.join(__dirname, '../dist/index.html'));
+	  win.loadFile(path.resolve(__dirname, '..', 'dist', 'index.html'));
+    } else {
+      // Load from dev server during development
+      win.loadURL('http://localhost:5173');
+    }
 }
 
 app.whenReady().then(() => {

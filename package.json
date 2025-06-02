@@ -24,11 +24,13 @@
     "appId": "Ventilator.appname",
     "productName": "Ventilator",
     "directories": {
-      "output": "dist_electron"
+      "output": "dist_electron",
+	  "buildResources": "build"
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+	  "package.json"
     ],
     "win": {
       "target": "nsis"
