@@ -19,7 +19,7 @@
     "vite": "^6.3.5"
   },
   
-  "main": "electron/main.js",
+  "main": "electron/main.cjs",
   "build": {
     "appId": "Ventilator.appname",
     "productName": "Ventilator",
