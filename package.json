@@ -32,6 +32,9 @@
       "electron/**/*",
 	  "package.json"
     ],
+	"extraMetadata": {
+	    "main": "electron/main.cjs"
+	},
     "win": {
       "target": "nsis"
     },
@@ -39,7 +42,6 @@
       "oneClick": false,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true
-    },
-	"publish": null
+    }
   }
 }
