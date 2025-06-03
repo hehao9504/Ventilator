@@ -28,9 +28,16 @@
                 <span class="label">体重:</span>
                 <span class="value">{{ patientInfo.Weight !== null ? `${patientInfo.Weight} kg` : '-' }}</span>
             </div>
+            <div class="info-item">
+                <span class="label">诊断:</span>
+                <span class="value">{{ patientInfo.DiagnosisName || '-' }}</span>
+            </div>
 
             <div class="actions-panel">
-                <button @click="saveModifiedData" :disabled="!dataLoaded || !originalFileHandle">Save Modified Data</button>
+                <button @click="saveModifiedData" 
+                        :disabled="!dataLoaded || (!originalFilePath && !originalFileHandle)">
+                    Save Modified Data
+                </button>
             </div>
         </aside>
 
@@ -41,7 +48,7 @@
                     v-for="measurement in selectData" 
                     :key="measurement.DataInfo.StartTime"  
                     :measurement-data="measurement"
-                    @showDetails="openDetailModal"
+                    @showDetails="openDetailWindow"
                     @isSuitableChanged="handleIsSuitableChange"
                 />
                 <div v-if="selectData.length === 0 && dataLoaded" class="no-data-message">
@@ -51,39 +58,33 @@
                     Click "Open JSON File" to load data.
                 </div>
             </div>
-        </main>
 
-        <MeasurementDetailModal 
-            v-if="isDetailModalVisible"
-            :measurement="selectedMeasurementForDetail"
-            @close="closeDetailModal"
-        />
+            <div class="detail-windows-area"> 
+                <MeasurementDetailModal 
+                    v-for="(windowData, index) in openDetailWindows"
+                    :key="windowData.id"
+                    :measurement="windowData.measurementData"
+                    :window-id="windowData.id"
+                    :z-index="windowData.zIndex" 
+                    :initial-position="{ top: 20 + (openDetailWindows.filter(w=>w.id !== windowData.id && w.zIndex < windowData.zIndex).length % 5) * 30, left: 50 + (openDetailWindows.filter(w=>w.id !== windowData.id && w.zIndex < windowData.zIndex).length % 10) * 30 }"
+                    @close="closeDetailWindow"
+                    @bringToFront="bringToFront" 
+                />
+            </div>
+        </main>
     </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue';
 import MeasurementCard from './components/MeasurementCard.vue';
 import MeasurementDetailModal from './components/MeasurementDetailModal.vue';
 
-// 确保 defaultPatientInfo 包含所有期望的 PatientInfo 字段及其默认值
 const defaultPatientInfo = () => ({
-    Id: 0,
-    PatientName: null,
-    PatientId: null,
-    VisitNumber: "",
-    WardName: null,
-    BedNo: null,
-    Sex: null, // 使用 null 作为数字或未知状态的初始值
-    Age: null, // 使用 null 作为数字的初始值
-    Height: null, // 使用 null 作为数字的初始值
-    Weight: null, // 使用 null 作为数字的初始值
-    DiagnosisCode: "",
-    DiagnosisName: "",
-    LastUpdateCode: "System",
-    LastUpdateName: "System",
-    LastUpdateDate: "", // 将由程序在加载/保存时更新
-    IsDeleted: false
+    Id: 0, PatientName: null, PatientId: null, VisitNumber: "", WardName: null,
+    BedNo: null, Sex: null, Age: null, Height: null, Weight: null,
+    DiagnosisCode: "", DiagnosisName: "", LastUpdateCode: "System",
+    LastUpdateName: "System", LastUpdateDate: "", IsDeleted: false
 });
 
 const patientInfo = reactive({ ...defaultPatientInfo() });
@@ -91,146 +92,162 @@ const selectData = ref([]);
 const dataLoaded = ref(false);
 const originalFileHandle = ref(null); 
 const originalFileNameFromHandle = ref(null); 
+const originalFilePath = ref(null);
 
-const isDetailModalVisible = ref(false);
-const selectedMeasurementForDetail = ref(null);
+const openDetailWindows = ref([]); 
+let nextZIndexCounter = ref(100); 
+
+// --- IPC Listeners ---
+const handleAppVersion = (version) => console.log('App Version:', version);
+const handleMainMessage = (message) => console.log('Message from main:', message);
+onMounted(() => { /* ... (IPC listeners setup) ... */ });
+onBeforeUnmount(() => { /* ... (IPC listeners cleanup) ... */ });
 
 function formatSex(sexCode) {
     if (sexCode === 1) return 'Male';
-    if (sexCode === 0 || sexCode === 2) return 'Female'; // 假设0或2也可能是有效代码
-    return '-'; // 如果 sexCode 是 null, undefined, 或其他未定义的值，显示 '-'
+    if (sexCode === 0 || sexCode === 2) return 'Female'; 
+    return '-'; 
 }
 
 async function handleFileSelectAndLoad() {
-    if (!window.showOpenFilePicker) {
-        alert('Your browser does not support the File System Access API. Please use a modern browser like Chrome or Edge.');
+    let fileContentToProcess = null;
+    let fileNameForSave = null;
+
+    if (window.electronAPI && typeof window.electronAPI.openFile === 'function') {
+        try {
+            const result = await window.electronAPI.openFile();
+            if (result && result.filePath && result.content) {
+                originalFilePath.value = result.filePath; 
+                fileNameForSave = result.filePath.split(/[/\\]/).pop();
+                originalFileNameFromHandle.value = fileNameForSave; // Store filename for save dialog
+                // originalFileHandle.value can be kept null if not used by Electron save
+                fileContentToProcess = result.content;
+            } else if (result === null) {
+                 console.log('File open dialog was cancelled (Electron).');
+                 return; // Do not proceed further
+            }
+        } catch (error) {
+            console.error('Error opening file via Electron:', error);
+            alert('Error opening file: ' + (error.message || error));
+            resetUIDataOnLoadFailure();
+            return;
+        }
+    } else if (window.showOpenFilePicker) { 
+        try {
+            const [fileHandle] = await window.showOpenFilePicker({
+                types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] }}],
+                multiple: false
+            });
+            originalFileHandle.value = fileHandle; // Store for FS API save if needed
+            fileNameForSave = fileHandle.name;
+            originalFileNameFromHandle.value = fileNameForSave;
+            originalFilePath.value = fileHandle.name; // Path not directly available, use name as placeholder
+
+            const file = await fileHandle.getFile();
+            fileContentToProcess = await file.text();
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                console.log('File picker was cancelled by the user (FS API).');
+            } else {
+                console.error('Error picking file with FS API:', err);
+                alert('Error picking file: ' + err.message);
+            }
+            return; // Do not proceed further
+        }
+    } else {
+        alert('File access API not supported by this browser or environment.');
         return;
     }
-    try {
-        const [fileHandle] = await window.showOpenFilePicker({
-            types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] }}],
-            multiple: false
-        });
-        originalFileHandle.value = fileHandle; 
-        originalFileNameFromHandle.value = fileHandle.name; 
 
-        const file = await fileHandle.getFile();
-        processFile(file);
-
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            console.log('File picker was cancelled by the user.');
-        } else {
-            console.error('Error picking file:', err);
-            alert('Error picking file: ' + err.message);
-        }
+    if (fileContentToProcess !== null) {
+        processFileContent(fileContentToProcess);
+        openDetailWindows.value = []; 
+        nextZIndexCounter.value = 100; 
     }
 }
 
-function processFile(fileToLoad) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const jsonData = JSON.parse(e.target.result);
-            console.log("Original jsonData.PatientInfo from file:", JSON.stringify(jsonData.PatientInfo, null, 2)); // 调试点1
-
-            // 1. 重置 patientInfo 为默认值
-            Object.assign(patientInfo, defaultPatientInfo());
-
-            // 2. 如果JSON数据中有PatientInfo，则用其更新响应式对象
-            if (jsonData.PatientInfo) {
-                for (const key in patientInfo) { // 遍历响应式对象的每一个key (它们来自defaultPatientInfo)
-                    if (Object.prototype.hasOwnProperty.call(jsonData.PatientInfo, key)) {
-                        // 如果加载的JSON的PatientInfo中也存在这个key (大小写匹配)
-                        if (jsonData.PatientInfo[key] !== null && jsonData.PatientInfo[key] !== undefined) {
-                             patientInfo[key] = jsonData.PatientInfo[key];
-                        }
-                        // 如果jsonData.PatientInfo[key]是null, patientInfo[key]将保持其来自defaultPatientInfo的null值
-                    }
-                }
-                // 处理JSON中可能存在但defaultPatientInfo中未定义的额外字段 (可选，但有助于完整性)
-                for (const keyInJson in jsonData.PatientInfo) {
-                    if (Object.prototype.hasOwnProperty.call(jsonData.PatientInfo, keyInJson) && !Object.prototype.hasOwnProperty.call(patientInfo, keyInJson)) {
-                        patientInfo[keyInJson] = jsonData.PatientInfo[keyInJson];
+function processFileContent(content) { /* ... (与之前版本相同) ... */
+    try {
+        const jsonData = JSON.parse(content);
+        Object.assign(patientInfo, defaultPatientInfo());
+        if (jsonData.PatientInfo) { 
+            for (const key in patientInfo) {
+                if (Object.prototype.hasOwnProperty.call(jsonData.PatientInfo, key)) {
+                    if (jsonData.PatientInfo[key] !== null && jsonData.PatientInfo[key] !== undefined) {
+                         patientInfo[key] = jsonData.PatientInfo[key];
                     }
                 }
             }
-            
-            patientInfo.LastUpdateDate = new Date().toISOString().replace('T', ' ').substring(0, 19); // 总是更新加载/处理时间
-            console.log("Processed patientInfo state:", JSON.stringify(patientInfo, null, 2)); // 调试点2
-
-            selectData.value = jsonData.SelectData && Array.isArray(jsonData.SelectData) ? JSON.parse(JSON.stringify(jsonData.SelectData)) : [];
-            dataLoaded.value = true;
-            
-        } catch (error) {
-            console.error("Error parsing JSON:", error);
-            alert("Error parsing JSON file. Please check the file format.");
-            resetUIDataOnLoadFailure(); 
+            for (const keyInJson in jsonData.PatientInfo) {
+                if (Object.prototype.hasOwnProperty.call(jsonData.PatientInfo, keyInJson) && !Object.prototype.hasOwnProperty.call(patientInfo, keyInJson)) {
+                    patientInfo[keyInJson] = jsonData.PatientInfo[keyInJson];
+                }
+            }
         }
-    };
-    reader.onerror = () => {
-        console.error("Error reading file:", reader.error);
-        alert("Error reading file.");
+        patientInfo.LastUpdateDate = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        selectData.value = jsonData.SelectData && Array.isArray(jsonData.SelectData) ? JSON.parse(JSON.stringify(jsonData.SelectData)) : [];
+        dataLoaded.value = true;
+    } catch (error) {
+        console.error("Error parsing JSON content:", error);
+        alert("Error parsing JSON file content. Please check the file format.");
         resetUIDataOnLoadFailure();
-    };
-    reader.readAsText(fileToLoad);
+    }
 }
 
-function handleIsSuitableChange({ identifier, sortNo, isSuitable }) {
+function handleIsSuitableChange({ identifier, sortNo, isSuitable }) { /* ... (与之前版本相同) ... */
     const measurementToUpdate = selectData.value.find(m => m.DataInfo.StartTime === identifier && m.DataInfo.SortNo === sortNo);
     if (measurementToUpdate) {
         measurementToUpdate.DataInfo.IsSuitable = isSuitable;
         measurementToUpdate.DataInfo.LastUpdateDate = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    } else {
-        console.warn(`Could not find measurement with StartTime ${identifier} and SortNo ${sortNo} to update.`);
     }
 }
 
-async function saveModifiedData() {
-    if (!dataLoaded.value || !originalFileHandle.value || !originalFileNameFromHandle.value) {
-        alert("No data loaded or original file reference is missing. Please open a file first.");
-        return;
+async function saveModifiedData() { /* ... (与之前版本相同, 使用 originalFilePath.value 或 originalFileNameFromHandle.value) ... */
+    const currentOriginalPathForSave = originalFilePath.value || originalFileNameFromHandle.value;
+    if (!dataLoaded.value || !currentOriginalPathForSave) {
+        alert("No data loaded or original file reference is missing."); return;
     }
-    if (!window.showSaveFilePicker) {
-        alert('Your browser does not support the File System Access API for saving.');
-        return;
-    }
-
-    const currentPatientInfoToSave = { ...patientInfo }; // 从响应式对象创建纯对象
-    currentPatientInfoToSave.LastUpdateDate = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-
-    const modifiedJsonData = {
-        PatientInfo: currentPatientInfoToSave, // 使用当前patientInfo的状态
-        SelectData: selectData.value 
-    };
-
+    const completePatientInfo = { ...patientInfo };
+    completePatientInfo.LastUpdateDate = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const modifiedJsonData = { PatientInfo: completePatientInfo, SelectData: selectData.value };
     const jsonString = JSON.stringify(modifiedJsonData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
 
-    let baseName = originalFileNameFromHandle.value;
-    const extension = '.json';
-    if (baseName.toLowerCase().endsWith(extension)) {
-        baseName = baseName.substring(0, baseName.length - extension.length);
-    }
-    const newFileName = `${baseName}-modify${extension}`;
-
-    try {
-        const saveHandle = await window.showSaveFilePicker({
-            suggestedName: newFileName,
-            types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }],
-        });
-        const writable = await saveHandle.createWritable();
-        await writable.write(jsonString);
-        await writable.close();
-        alert(`Data successfully saved as ${saveHandle.name}`);
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            console.log('Save file dialog was cancelled by the user.');
-        } else {
-            console.error('Error saving file:', err);
-            alert('Error saving file: ' + err.message);
+    if (window.electronAPI && typeof window.electronAPI.saveFile === 'function') {
+        try {
+            // originalFilePath.value should be set by openFileViaElectron if using Electron IPC
+            const result = await window.electronAPI.saveFile(originalFilePath.value, jsonString); 
+            if (result && result.success) alert(`Data successfully saved as ${result.filePath}`);
+            else if (result === null) console.log('Save file dialog was cancelled.');
+            else alert('Failed to save file (main process reported an issue).');
+        } catch (error) {
+            console.error('Error saving file via Electron:', error);
+            alert('Error saving file: ' + (error.message || error));
         }
+    } else if (window.showSaveFilePicker && originalFileHandle.value) { // Fallback for browser FS API
+        let baseName = originalFileNameFromHandle.value; // Use the name from the handle
+        const extension = '.json';
+        if (baseName.toLowerCase().endsWith(extension)) {
+            baseName = baseName.substring(0, baseName.length - extension.length);
+        }
+        const newFileName = `${baseName}-modify${extension}`;
+        try {
+            const saveHandle = await window.showSaveFilePicker({
+                suggestedName: newFileName,
+                types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }],
+            });
+            const writable = await saveHandle.createWritable();
+            await writable.write(jsonString);
+            await writable.close();
+            alert(`Data successfully saved as ${saveHandle.name}`);
+        } catch (err) {
+            if (err.name === 'AbortError') console.log('Save file dialog was cancelled by the user.');
+            else {
+                console.error('Error saving file with FS API:', err);
+                alert('Error saving file: ' + err.message);
+            }
+        }
+    } else {
+         alert('File saving API not supported.');
     }
 }
 
@@ -240,58 +257,65 @@ function resetUIDataOnLoadFailure() {
     dataLoaded.value = true; 
     originalFileHandle.value = null;
     originalFileNameFromHandle.value = null;
-    closeDetailModal();
+    originalFilePath.value = null;
+    openDetailWindows.value = []; 
+    nextZIndexCounter.value = 100;
 }
 
-function openDetailModal(measurement) {
-    selectedMeasurementForDetail.value = measurement;
-    isDetailModalVisible.value = true;
+function openDetailWindow(measurementData) {
+    if (!measurementData?.DataInfo?.StartTime) {
+        console.error("Cannot open detail window: Invalid measurement data", measurementData);
+        return;
+    }
+    const windowId = measurementData.DataInfo.StartTime;
+    const existingWindow = openDetailWindows.value.find(w => w.id === windowId);
+
+    if (existingWindow) {
+        bringToFront(windowId);
+    } else {
+        openDetailWindows.value.push({
+            id: windowId,
+            measurementData: measurementData,
+            zIndex: nextZIndexCounter.value++,
+        });
+    }
 }
 
-function closeDetailModal() {
-    isDetailModalVisible.value = false;
-    selectedMeasurementForDetail.value = null;
+function closeDetailWindow(windowIdToClose) {
+    openDetailWindows.value = openDetailWindows.value.filter(w => w.id !== windowIdToClose);
+}
+
+function bringToFront(windowIdToFront) {
+    const windowIndex = openDetailWindows.value.findIndex(w => w.id === windowIdToFront);
+    if (windowIndex !== -1) {
+        const windowInstance = openDetailWindows.value[windowIndex];
+        windowInstance.zIndex = nextZIndexCounter.value++;
+        // Vue 3 reactivity should handle re-ordering if items are sorted by zIndex,
+        // or simply rely on browser stacking context for z-index.
+        // Forcing a re-render of just that item might be tricky or unnecessary.
+    }
 }
 </script>
 
 <style>
 @import './assets/style.css'; 
 
-.actions-panel {
-    margin-top: 30px; /* 增加与上方信息的间距 */
-    padding-top: 20px; /* 增加顶部内边距 */
-    border-top: 1px solid #eee; /* 分隔线 */
-    text-align: center;
+.detail-windows-area {
+    position: fixed; 
+    top: 0;
+    left: 0;
+    width: 100vw; /* 使用视口单位确保覆盖全屏 */
+    height: 100vh;
+    pointer-events: none; /* 允许点击穿透到主界面，除非点到实际的窗口 */
+    z-index: 50; /* 确保这个区域在卡片之上，但在模态窗口之下 */
 }
-.actions-panel button {
-    padding: 10px 20px;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.2s ease-in-out;
-}
-.actions-panel button:hover:not(:disabled) {
-    background-color: #218838;
-}
-.actions-panel button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-.file-loader button {
-    padding: 10px 15px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    width: calc(100% - 10px);
-    margin: 0 5px;
-}
-.file-loader button:hover {
-    background-color: #0056b3;
-}
+
+/* 其他 App.vue 样式保持不变 */
+.actions-panel { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; }
+.actions-panel button { padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; transition: background-color 0.2s ease-in-out; }
+.actions-panel button:hover:not(:disabled) { background-color: #218838; }
+.actions-panel button:disabled { background-color: #ccc; cursor: not-allowed; }
+.file-loader button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; width: calc(100% - 10px); margin: 0 5px 20px 5px; }
+.file-loader button:hover { background-color: #0056b3; }
+.no-data-message { width: 100%; text-align: center; padding: 20px; color: #777; font-style: italic; }
 </style>
