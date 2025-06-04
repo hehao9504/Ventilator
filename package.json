@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "electron:dev": "electron .",
-    "electron:build": "electron-builder"	
+    "electron:build": "electron-builder"
   },
   "dependencies": {
-    "vue": "^3.5.13"
+    "chart.js": "^4.4.9",
+    "vue": "^3.5.13",
+    "vue-chartjs": "^5.3.2"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
@@ -18,23 +20,22 @@
     "electron-builder": "^26.0.12",
     "vite": "^6.3.5"
   },
-  
   "main": "electron/main.cjs",
   "build": {
     "appId": "Ventilator.appname",
     "productName": "Ventilator",
     "directories": {
       "output": "dist_electron",
-	  "buildResources": "build"
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
       "electron/**/*",
-	  "package.json"
+      "package.json"
     ],
-	"extraMetadata": {
-	    "main": "electron/main.cjs"
-	},
+    "extraMetadata": {
+      "main": "electron/main.cjs"
+    },
     "win": {
       "target": "nsis"
     },
@@ -43,6 +44,6 @@
       "perMachine": true,
       "allowToChangeInstallationDirectory": true
     },
-	"publish": null
+    "publish": null
   }
 }

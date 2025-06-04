@@ -12,7 +12,7 @@
 
         <div class="window-body">
             <div class="detail-section">
-                <h4>参数信息 (按时间合并)</h4>
+                <h4>参数信息</h4>
                 <div v-if="groupedParamData.timestamps.length > 0" class="param-table-container">
                     <table>
                         <thead>
@@ -64,24 +64,51 @@
             </div>
 
             <div class="detail-section">
-                <h4>原始波形数据 (WaveField)</h4>
-                <p style="color: #888; font-style: italic;">（波形图表功能待后续实现）</p>
-                <div v-if="measurement?.WaveField?.length">
-                     <div v-for="(waveGroup, groupIndex) in measurement.WaveField" :key="`wave-group-${groupIndex}`" class="wave-group">
-                        <strong>数据块记录时间: {{ formatTime(waveGroup.RecordTime) }}</strong>
-                        <div v-for="(item, itemIndex) in waveGroup.ItemData" :key="`wave-item-${groupIndex}-${itemIndex}`" class="wave-item">
-                            <strong>{{ item.Name }}:</strong>
-                            <textarea readonly class="wave-data-area">{{ item.Value }}</textarea>
-                        </div>
-                    </div>
+                <h4>波形图 (WaveField)</h4>
+                <div v-if="concatenatedVentPawWaveData.data" class="wave-chart-item">
+                    <WaveformChart
+                        :wave-name="concatenatedVentPawWaveData.name"
+                        :wave-string-data="concatenatedVentPawWaveData.data"
+                        chart-height="200px"
+                    />
+                    <p v-if="concatenatedVentPawWaveData.sampleRateInfo" class="wave-sample-rate">
+                       采样率参考: {{ concatenatedVentPawWaveData.sampleRateInfo }}
+                    </p>
                 </div>
-                <p v-else>无波形数据。</p>
+                <p v-else-if="hasAnyWaveFieldData && !concatenatedVentPawWaveData.data">未找到 'Vent_Paw_Wave' 波形数据或数据为空。</p>
+
+                <div v-if="concatenatedVentFlowWaveData.data" class="wave-chart-item">
+                    <WaveformChart
+                        :wave-name="concatenatedVentFlowWaveData.name"
+                        :wave-string-data="concatenatedVentFlowWaveData.data"
+                        chart-height="200px"
+                    />
+                    <p v-if="concatenatedVentFlowWaveData.sampleRateInfo" class="wave-sample-rate">
+                       采样率参考: {{ concatenatedVentFlowWaveData.sampleRateInfo }}
+                    </p>
+                </div>
+                <p v-else-if="hasAnyWaveFieldData && !concatenatedVentFlowWaveData.data">未找到 'Vent_Flow_Wave' 波形数据或数据为空。</p>
+
+                <div v-if="concatenatedVentVolWaveData.data" class="wave-chart-item">
+                    <WaveformChart
+                        :wave-name="concatenatedVentVolWaveData.name"
+                        :wave-string-data="concatenatedVentVolWaveData.data"
+                        chart-height="200px"
+                    />
+                    <p v-if="concatenatedVentVolWaveData.sampleRateInfo" class="wave-sample-rate">
+                       采样率参考: {{ concatenatedVentVolWaveData.sampleRateInfo }}
+                    </p>
+                </div>
+                <p v-else-if="hasAnyWaveFieldData && !concatenatedVentVolWaveData.data">未找到 'Vent_Vol_Wave' 波形数据或数据为空。</p>
+
+                <p v-if="!hasAnyWaveFieldData && !concatenatedVentPawWaveData.data && !concatenatedVentFlowWaveData.data && !concatenatedVentVolWaveData.data">无波形数据。</p>
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
+import WaveformChart from './WaveformChart.vue'; // 确保路径正确
 import { defineProps, defineEmits, computed, ref, onBeforeUnmount } from 'vue';
 
 const props = defineProps({
@@ -135,9 +162,10 @@ function handleMouseDown(event) {
             canDrag = true;
         }
     }
-    if (event.target === headerRef.value) {
-        canDrag = true;
+     if (event.target === headerRef.value) {
+         canDrag = true;
     }
+
     if (canDrag) {
         isDragging.value = true;
         dragStartOffset.value = {
@@ -184,26 +212,26 @@ function formatTime(dateTimeString) {
     }
 }
 
-// ****** 根据您CSV/图片提供的参数列表，并请确保 'name' 字段与JSON数据中的键名一致 ******
+// ****** 请根据您实际的JSON数据键名仔细校准此处的 'name' 字段 ******
+// ****** displayName 应与您CSV/图片中的中文名一致 ******
 const desiredParamsConfig = [
     // 设置参数
-    { name: 'SET_OXYGEN', 	displayName: '氧浓度', 	 	type: 'setting' },
-	{ name: 'SET_TV',  		displayName: '吸气压力', 	    type: 'setting' },
-	{ name: 'SET_PINSP',	displayName: '吸气压力',  	type: 'setting' },
-	{ name: 'SET_SIMVRR',	displayName: 'SIMV呼吸频率', 	type: 'setting' },
-    { name: 'SET_RR',     	displayName: '呼吸频率',  	type: 'setting' }, 
-    { name: 'SET_TINS',   	displayName: '吸气时间', 		type: 'setting' },
-	{ name: 'SET_PEEP',   	displayName: '呼末正压', 		type: 'setting' },
-    { name: 'SET_PSUPP',  	displayName: '支持压力',  	type: 'setting' },
+    { name: 'SET_PINSP',  displayName: '吸气压力',     type: 'setting' },
+    { name: 'SET_PEEP',   displayName: 'PEEP',           type: 'setting' },
+    { name: 'SET_OXYGEN', displayName: '氧浓度',         type: 'setting' },
+    { name: 'SET_RR',     displayName: '呼吸频率',       type: 'setting' },
+    { name: 'SET_TINS',   displayName: '吸气时间',       type: 'setting' },
+    { name: 'SET_PSUPP',  displayName: '压力支持',       type: 'setting' },
 
     // 监测参数
-    { name: 'PPEAK',      	displayName: '峰值压',       type: 'monitoring' },
-    { name: 'PEAP',      	displayName: '呼末正压',   	type: 'monitoring' },
-    { name: 'MVINSP',      	displayName: '分钟通气量', 	type: 'monitoring' },
-    { name: 'VTE',        	displayName: '呼出潮气量',   	type: 'monitoring' },
-    { name: 'RATE',       	displayName: '总频率',       type: 'monitoring' }, 
-
-    // 波形数据参数 (假设这些是ParamField中的数值)
+    { name: 'VTI',        displayName: '吸入潮气量',   type: 'monitoring' },
+    { name: 'VTE',        displayName: '呼出潮气量',   type: 'monitoring' },
+    { name: 'MVE',        displayName: '分钟通气量',   type: 'monitoring' },
+    { name: 'RATE',       displayName: '呼吸频率',       type: 'monitoring' },
+    { name: 'FIO2',       displayName: '吸氧浓度',       type: 'monitoring' },
+    { name: 'PPEAK',      displayName: '气道峰压',       type: 'monitoring' },
+    { name: 'PPLAT',      displayName: '平台压',         type: 'monitoring' },
+    { name: 'COMPL',      displayName: '顺应性',         type: 'monitoring' }
 ];
 // ****** 结束重要修改区域 ******
 
@@ -214,7 +242,7 @@ const groupedParamData = computed(() => {
         return { timestamps: [], displayParams: { setting: [], monitoring: [], waveRelated: [] }, dataMatrix: {} };
     }
     const timestampsSet = new Set();
-    const dataMatrix = {}; 
+    const dataMatrix = {};
     paramField.forEach(group => {
         if (!group || !group.RecordTime || !Array.isArray(group.ItemData)) return;
         const recordTime = group.RecordTime;
@@ -232,7 +260,7 @@ const groupedParamData = computed(() => {
     });
     const displayParams = { setting: [], monitoring: [], waveRelated: [] };
     desiredParamsConfig.forEach(config => {
-        if (dataMatrix[config.name]) { 
+        if (dataMatrix[config.name]) {
             if (config.type === 'setting') displayParams.setting.push(config);
             else if (config.type === 'monitoring') displayParams.monitoring.push(config);
             else if (config.type === 'waveRelated') displayParams.waveRelated.push(config);
@@ -241,26 +269,103 @@ const groupedParamData = computed(() => {
     return { timestamps: sortedTimestamps, displayParams, dataMatrix };
 });
 
+// 计算属性：检查是否有任何 WaveField 数据
+const hasAnyWaveFieldData = computed(() => {
+    return props.measurement?.WaveField?.length > 0 &&
+           props.measurement.WaveField.some(wfBlock => wfBlock.ItemData && wfBlock.ItemData.length > 0);
+});
+
+// 通用的波形数据拼接函数
+function getConcatenatedWaveData(waveNameKey, sampleRateNameKey) {
+    if (!hasAnyWaveFieldData.value) {
+        return { name: waveNameKey, data: null, sampleRateInfo: null };
+    }
+
+    const waveSegments = [];
+    props.measurement.WaveField.forEach(waveBlock => {
+        if (waveBlock && Array.isArray(waveBlock.ItemData) && waveBlock.RecordTime) {
+            const waveDataItem = waveBlock.ItemData.find(item => item.Name === waveNameKey);
+            
+            if (waveDataItem && typeof waveDataItem.Value === 'string' && waveDataItem.Value.trim() !== '') {
+                let segmentSampleRate = 200; // 默认采样率
+                const sampleItem = waveBlock.ItemData.find(item => item.Name === sampleRateNameKey);
+                if (sampleItem && !isNaN(parseInt(sampleItem.Value, 10))) {
+                    segmentSampleRate = parseInt(sampleItem.Value, 10);
+                }
+                
+                waveSegments.push({
+                    recordTime: waveBlock.RecordTime,
+                    waveValue: waveDataItem.Value,
+                    sampleRate: segmentSampleRate 
+                });
+            }
+        }
+    });
+
+    if (waveSegments.length === 0) {
+        return { name: `${waveNameKey} (合并)`, data: null, sampleRateInfo: `无 ${waveNameKey} 数据` };
+    }
+
+    waveSegments.sort((a, b) => new Date(a.recordTime).getTime() - new Date(b.recordTime).getTime());
+    const concatenatedData = waveSegments.map(segment => segment.waveValue).join('^');
+    
+    let representativeSampleRateInfo = "未指定";
+    if (waveSegments.length > 0 && waveSegments[0].sampleRate !== null) {
+        const firstSampleRate = waveSegments[0].sampleRate;
+        const allSameRate = waveSegments.every(s => s.sampleRate === firstSampleRate);
+        if (allSameRate) {
+            representativeSampleRateInfo = `${firstSampleRate} Hz`;
+        } else {
+            const rates = waveSegments.map(s => s.sampleRate).filter(r => r !== null);
+            if (rates.length > 0) {
+                const minRate = Math.min(...rates);
+                const maxRate = Math.max(...rates);
+                representativeSampleRateInfo = `多段 (${minRate === maxRate ? minRate : minRate + '-' + maxRate} Hz)`;
+            } else {
+                representativeSampleRateInfo = "多段 (采样率未知)";
+            }
+        }
+    }
+
+    return {
+        name: `${waveNameKey}`,
+        data: concatenatedData,
+        sampleRateInfo: representativeSampleRateInfo
+    };
+}
+
+const concatenatedVentPawWaveData = computed(() => {
+    return getConcatenatedWaveData('Vent_Paw_Wave', 'Vent_Paw_Wave_Sample');
+});
+
+const concatenatedVentFlowWaveData = computed(() => {
+    return getConcatenatedWaveData('Vent_Flow_Wave', 'Vent_Flow_Wave_Sample'); // 假设采样率键名类似
+});
+
+const concatenatedVentVolWaveData = computed(() => {
+    return getConcatenatedWaveData('Vent_Vol_Wave', 'Vent_Vol_Wave_Sample'); // 假设采样率键名类似
+});
+
 </script>
 
 <style scoped>
 .detail-window-content {
     background-color: white;
     border: 1px solid #b0b0b0;
-    padding: 0; 
+    padding: 0;
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    width: 750px; 
-    height: 550px; 
-    max-width: 90vw;
-    max-height: 85vh;
+    width: 1000px;
+    height: 1600px; /* 增加默认高度以容纳更多图表 */
+    max-width: 95vw;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
-    resize: both; 
+    resize: both;
     overflow: hidden;
-    min-width: 400px; 
-    min-height: 300px;
-    pointer-events: auto; 
+    min-width: 500px;
+    min-height: 500px; /* 增加最小高度 */
+    pointer-events: auto;
 }
 
 .window-header {
@@ -270,10 +375,10 @@ const groupedParamData = computed(() => {
     padding: 8px 12px;
     background-color: #e8eef7;
     border-bottom: 1px solid #ccc;
-    border-top-left-radius: 7px; 
+    border-top-left-radius: 7px;
     border-top-right-radius: 7px;
-    cursor: move; 
-    flex-shrink: 0; 
+    cursor: move;
+    flex-shrink: 0;
     user-select: none;
 }
 .window-header span { font-weight: bold; color: #333; font-size: 0.95em; }
@@ -281,45 +386,42 @@ const groupedParamData = computed(() => {
 .window-close-button { background: none; border: none; font-size: 1.6em; line-height: 1; cursor: pointer; color: #666; padding: 0 5px; }
 .window-close-button:hover { color: #000; }
 
-.window-body { padding: 15px; overflow-y: auto; overflow-x: hidden; flex-grow: 1; display: flex; flex-direction: column; }
+.window-body {
+    padding: 15px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
 
 .detail-section { margin-bottom: 20px; }
 .detail-section:last-child { margin-bottom: 0; }
 .detail-section h4 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-top: 0; margin-bottom: 10px; font-size: 1.1em; }
 
-.param-table-container { overflow: auto; max-height: 300px; border: 1px solid #e0e0e0; border-radius: 4px; }
+.param-table-container {
+    overflow: auto;
+    max-height: 600px; /* 调整参数表格最大高度，为更多波形图留空间 */
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
 table { width: 100%; border-collapse: collapse; font-size: 0.85em;  table-layout: fixed; }
 th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; white-space: nowrap; }
 td.value-cell { text-align: center; overflow: hidden; text-overflow: ellipsis; }
 th { background-color: #f0f2f5; font-weight: bold; position: sticky; top: 0; z-index: 2; }
 
-/* 修改后的固定列样式 */
-.sticky-col {
-    position: sticky;
-    background-color: #f9f9f9; 
-    z-index: 1;
-}
-.first-col { /* 现在是 "参数名称" 列 */
+.sticky-col { position: sticky; background-color: #f9f9f9; z-index: 1;}
+.first-col { /* 参数名称列 */
     left: 0;
-    width: 180px; /* 根据参数名称的长度调整 */
-    min-width: 180px;
-    max-width: 180px; 
+    width: 100px;
+    min-width: 80px;
+    max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-/* .second-col 相关的样式已移除 */
-
-th.first-col { /* 表头的 "参数名称" 列 */
-    z-index: 3; 
-}
-
-/* .param-type-cell 样式已移除 */
-td.param-name-cell { /* 这个类名仍然用于参数名称单元格 */
-    vertical-align: middle;
-    font-weight: 500;
-}
-
-/* 用于参数类别标题行的样式 (如果使用) */
+th.first-col { z-index: 3; }
+td.param-name-cell { vertical-align: middle; font-weight: 500; }
 .param-category-header {
     font-weight: bold;
     background-color: #e8e8e8;
@@ -327,14 +429,20 @@ td.param-name-cell { /* 这个类名仍然用于参数名称单元格 */
     padding-left: 10px !important;
     font-style: italic;
     color: #333;
-    /* z-index: 1; // 确保它在普通单元格之上，但在吸顶表头之下 */
-    /* position: sticky; top: 0; // 如果希望类别标题也吸顶，但这会复杂化与列标题的吸顶 */
+    position: sticky;
+    top: 28px; /* 假设表头行高，需要根据实际微调 */
+    z-index: 1; /* 确保在普通单元格之上，但低于表头固定列 */
 }
 
-
-.wave-group { margin-bottom: 15px; padding: 10px; border: 1px solid #f0f0f0; border-radius: 4px; background-color: #f9f9f9; }
-.wave-group > strong { display: block; margin-bottom: 5px; color: #333; font-size: 1.05em; }
-.wave-item { margin-bottom: 10px; }
-.wave-item strong { display: block; margin-bottom: 3px; color: #555; font-size: 0.95em; }
-.wave-data-area { width: 100%; height: 60px; font-family: monospace; font-size: 0.8em; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background-color: #fff; resize: vertical; box-sizing: border-box; line-height: 1.4; color: #333; }
+/* WaveField 部分的样式 */
+.wave-data-block { margin-bottom: 10px; }
+.wave-chart-item {
+    border: 1px solid #e0e0e0;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+    background-color: #fdfdfd;
+    min-height: 220px; /* 调整，因为 chartHeight prop 现在是 200px */
+}
+.wave-sample-rate { font-size: 0.8em; color: #777; margin-top: 4px; text-align: right; }
 </style>
