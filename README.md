@@ -1,5 +1,25 @@
-# Vue 3 + Vite
+# Ventilator Data View Application
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+This application is used to show ventilator data from MNDRY Ventilator.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## Version 0.1
+
+可以读取采集的数据（JSON格式），完成的功能
+
+- 主界面：每一组 {DataInfo, ParaField, WaveField} 在主界面显示为一张卡片，如果有多组就显示多个卡片。
+- 点击每个卡片可以会弹出新窗口，显示该卡片里面的详细数据（仅简单列出）
+- 通过观察详细数据可以在主界面来设置单个卡片数据是否合适（IsSuitable），调整后可以通过左侧按钮保存
+
+存在问题：前期有一批数据不能读出，正在排查原因。
+
+## Version 0.2
+
+在 v0.1 的基础上增加如下功能
+
+- 点击每个卡片弹出的详细数据按照建议，将多次采集的数值数据合并为表格，便于观察
+- 波形数据也进行了合并，实现了 3 个主要参数的显示
+- 弹出的详细窗口大小、内部表格的宽度都做了调整，便于用户使用
+
+前期问题解决：前期数据的格式做了转换，的确不能读出，暂时先不处理。
+
+存在问题：呼吸模型（VentMode）的数据格式还没有搞清楚，还需要进一步调研
