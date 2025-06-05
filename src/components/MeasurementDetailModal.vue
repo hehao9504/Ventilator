@@ -151,6 +151,7 @@ function formatTime(dateTimeString) {
     catch (e) { return dateTimeString; }
 }
 const desiredParamsConfig = [
+    { name: 'SET_VENTMODE', displayName: '呼吸模式',     type: 'setting' }, // 确保此行存在且正确
     { name: 'SET_OXYGEN', 	displayName: '氧浓度',       type: 'setting' },
 	{ name: 'SET_TV', 		displayName: '潮气量',       type: 'setting' },	
 	{ name: 'SET_PINSP',  	displayName: '吸气压力',     type: 'setting' },
@@ -165,6 +166,51 @@ const desiredParamsConfig = [
     { name: 'VTE',        	displayName: '呼出潮气量',   	type: 'monitoring' },
     { name: 'RATE',       	displayName: '总频率',  	type: 'monitoring' }
 ];
+
+// --- parseVentMode 函数 ---
+// --- 用于抽取不同的 set_ventmode 参数 ---
+function parseVentMode(valueString) {
+    if (typeof valueString !== 'string') {
+        return valueString; // 如果不是字符串，直接返回
+    }
+
+    if (valueString.includes('^')) {
+        const parts = valueString.split('^');
+        if (parts.length > 1) {
+            let modeName = parts[1]; // 取第二个部分
+            // 移除已知的前缀
+            if (modeName.startsWith('MNDRY_VENT_MODE_')) {
+                modeName = modeName.substring('MNDRY_VENT_MODE_'.length);
+            } else if (modeName.startsWith('COMEN_VENT_MODE_')) { // 假设科曼也有类似前缀
+                modeName = modeName.substring('COMEN_VENT_MODE_'.length);
+            }
+            // 在这里您可以添加更多品牌的模式前缀移除逻辑
+            // 或者，如果第二个部分就是您想要的模式名，则不需要移除前缀
+
+            // 进一步简化常见的模式名：
+            if (modeName === 'CPAP_PLUS_PS') return 'CPAP+PS';
+            //if (modeName === 'SIMVPC_PLUS_PS') return 'SIMV(PC)+PS';
+            return modeName;
+        }
+        return parts[0]; // 如果分割后不符合预期（例如只有一个元素或没有第二个元素），返回第一部分
+    } else {
+        // 不包含 '^'，可能是纯数字代码或其他格式
+        // 如果是纯数字代码，您可以根据映射表转换为可读名称
+        // 示例映射 (您需要提供实际的映射关系)
+        /* const modeCodeMap = {
+            '5119': 'PC-SIMV (示例)', // 假设 5119 对应 PC-SIMV
+            '50009': 'SIMV-PC (示例)', // 来自您的第一个例子，但现在会通过^解析
+            '50021': 'CPAP+PS (示例)', // 来自您的第二个例子，但现在会通过^解析
+            '5120': 'PSV (示例)'      // 从您的JSON数据中看到的另一个值
+            // ... 其他模式代码映射
+        };
+        if (modeCodeMap[valueString]) {
+            return modeCodeMap[valueString];
+        }*/
+        return valueString; // 如果没有映射，直接返回值
+    }
+}
+
 const groupedParamData = computed(() => {
     const paramField = props.measurement?.ParamField;
     if (!paramField || paramField.length === 0) {
@@ -179,7 +225,12 @@ const groupedParamData = computed(() => {
         group.ItemData.forEach(item => {
             if (!item || !item.Name) return;
             if (!dataMatrix[item.Name]) dataMatrix[item.Name] = {};
-            dataMatrix[item.Name][recordTime] = item.Value;
+			
+			if (item.Name === 'SET_VENTMODE') {
+                dataMatrix[item.Name][recordTime] = parseVentMode(item.Value);
+            } else {
+                dataMatrix[item.Name][recordTime] = item.Value;
+            }
         });
     });
     const sortedTimestamps = Array.from(timestampsSet).sort((a, b) => {

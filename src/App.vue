@@ -166,8 +166,8 @@ function detectVentilatorType(paramFieldArray) {
             continue;
         }
     }
-    if (fiveSecondIntervals > 0 && fiveSecondIntervals >= tenSecondIntervals) return 'Mindray';
-    if (tenSecondIntervals > 0 && tenSecondIntervals > fiveSecondIntervals) return 'Comen';
+    if (fiveSecondIntervals > 0 && fiveSecondIntervals >= tenSecondIntervals) return 'Comen';
+    if (tenSecondIntervals > 0 && tenSecondIntervals > fiveSecondIntervals) return 'Mindray';
     console.warn("未能明确检测到呼吸机类型。5s间隔数:", fiveSecondIntervals, "10s间隔数:", tenSecondIntervals);
     return 'Unknown';
 }
