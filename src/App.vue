@@ -34,7 +34,7 @@
             </div>
 
             <div class="actions-panel">
-                <button @click="saveModifiedData" 
+                <button @click="saveModifiedData"
                         :disabled="!dataLoaded || (!originalFilePath && !originalFileHandle)">
                     Save Modified Data
                 </button>
@@ -44,9 +44,9 @@
         <main class="measurements-panel">
             <h2>Measurement Data</h2>
             <div class="cards-container">
-                <MeasurementCard 
-                    v-for="measurement in selectData" 
-                    :key="measurement.DataInfo.StartTime"  
+                <MeasurementCard
+                    v-for="measurement in selectData"
+                    :key="measurement.DataInfo.StartTime"
                     :measurement-data="measurement"
                     @showDetails="openDetailWindow"
                     @isSuitableChanged="handleIsSuitableChange"
@@ -59,16 +59,16 @@
                 </div>
             </div>
 
-            <div class="detail-windows-area"> 
-                <MeasurementDetailModal 
-                    v-for="(windowData, index) in openDetailWindows"
+            <div class="detail-windows-area">
+                <MeasurementDetailModal
+                    v-for="(windowData) in openDetailWindows"
                     :key="windowData.id"
                     :measurement="windowData.measurementData"
                     :window-id="windowData.id"
-                    :z-index="windowData.zIndex" 
-                    :initial-position="{ top: 20 + (openDetailWindows.filter(w=>w.id !== windowData.id && w.zIndex < windowData.zIndex).length % 5) * 30, left: 50 + (openDetailWindows.filter(w=>w.id !== windowData.id && w.zIndex < windowData.zIndex).length % 10) * 30 }"
+                    :z-index="windowData.zIndex"
+                    :initial-position="windowData.position"
                     @close="closeDetailWindow"
-                    @bringToFront="bringToFront" 
+                    @bringToFront="bringToFront"
                 />
             </div>
         </main>
@@ -81,97 +81,175 @@ import MeasurementCard from './components/MeasurementCard.vue';
 import MeasurementDetailModal from './components/MeasurementDetailModal.vue';
 
 const defaultPatientInfo = () => ({
-    Id: 0, PatientName: null, PatientId: null, VisitNumber: "", WardName: null,
-    BedNo: null, Sex: null, Age: null, Height: null, Weight: null,
-    DiagnosisCode: "", DiagnosisName: "", LastUpdateCode: "System",
-    LastUpdateName: "System", LastUpdateDate: "", IsDeleted: false
+    Id: 0,
+    PatientName: null,
+    PatientId: null,
+    VisitNumber: "",
+    WardName: null,
+    BedNo: null,
+    Sex: null,
+    Age: null,
+    Height: null,
+    Weight: null,
+    DiagnosisCode: "",
+    DiagnosisName: "",
+    LastUpdateCode: "System",
+    LastUpdateName: "System",
+    LastUpdateDate: "",
+    IsDeleted: false
 });
 
 const patientInfo = reactive({ ...defaultPatientInfo() });
 const selectData = ref([]);
 const dataLoaded = ref(false);
-const originalFileHandle = ref(null); 
-const originalFileNameFromHandle = ref(null); 
-const originalFilePath = ref(null);
+const originalFileHandle = ref(null); // For browser File System Access API
+const originalFileNameFromHandle = ref(null); // For browser File System Access API & Electron
+const originalFilePath = ref(null); // For Electron IPC
 
-const openDetailWindows = ref([]); 
-let nextZIndexCounter = ref(100); 
+const openDetailWindows = ref([]);
+let nextZIndexCounter = ref(100);
+let openWindowCascadeCounter = 0;
 
-// --- IPC Listeners ---
-const handleAppVersion = (version) => console.log('App Version:', version);
-const handleMainMessage = (message) => console.log('Message from main:', message);
-onMounted(() => { /* ... (IPC listeners setup) ... */ });
-onBeforeUnmount(() => { /* ... (IPC listeners cleanup) ... */ });
+// --- IPC Listeners (Example, if used) ---
+const handleAppVersion = (version) => {
+  console.log('App Version from main process:', version);
+};
+const handleMainMessage = (message) => {
+    console.log('Message from main process:', message);
+};
+
+onMounted(() => {
+  if (window.electronAPI) {
+    window.electronAPI.onAppVersion?.(handleAppVersion); // Optional chaining for safety
+    window.electronAPI.onMainProcessMessage?.(handleMainMessage);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (window.electronAPI) {
+    window.electronAPI.removeAppVersionListener?.(handleAppVersion);
+    window.electronAPI.removeMainProcessMessageListener?.(handleMainMessage);
+  }
+});
+// --- End IPC Listeners ---
 
 function formatSex(sexCode) {
     if (sexCode === 1) return 'Male';
-    if (sexCode === 0 || sexCode === 2) return 'Female'; 
-    return '-'; 
+    if (sexCode === 0 || sexCode === 2) return 'Female';
+    return '-';
 }
+
+// 新增：检测呼吸机类型的函数
+function detectVentilatorType(paramFieldArray) {
+    if (!paramFieldArray || paramFieldArray.length < 2) {
+        console.warn("无法检测呼吸机类型：ParamField 数据不足或不存在。");
+        return 'Unknown';
+    }
+    let fiveSecondIntervals = 0;
+    let tenSecondIntervals = 0;
+    const maxChecks = Math.min(3, paramFieldArray.length - 1);
+
+    for (let i = 0; i < maxChecks; i++) {
+        if (!paramFieldArray[i].RecordTime || !paramFieldArray[i+1].RecordTime) continue;
+        try {
+            const time1 = new Date(paramFieldArray[i].RecordTime).getTime();
+            const time2 = new Date(paramFieldArray[i+1].RecordTime).getTime();
+            if (isNaN(time1) || isNaN(time2)) {
+                console.warn("无效的 RecordTime 格式:", paramFieldArray[i].RecordTime, paramFieldArray[i+1].RecordTime);
+                continue;
+            }
+            const diffSeconds = Math.round(Math.abs(time2 - time1) / 1000);
+            if (diffSeconds >= 4 && diffSeconds <= 6) fiveSecondIntervals++;
+            else if (diffSeconds >= 9 && diffSeconds <= 11) tenSecondIntervals++;
+        } catch (e) {
+            console.error("解析 RecordTime 时出错:", e);
+            continue;
+        }
+    }
+    if (fiveSecondIntervals > 0 && fiveSecondIntervals >= tenSecondIntervals) return 'Mindray';
+    if (tenSecondIntervals > 0 && tenSecondIntervals > fiveSecondIntervals) return 'Comen';
+    console.warn("未能明确检测到呼吸机类型。5s间隔数:", fiveSecondIntervals, "10s间隔数:", tenSecondIntervals);
+    return 'Unknown';
+}
+
 
 async function handleFileSelectAndLoad() {
     let fileContentToProcess = null;
-    let fileNameForSave = null;
 
-    if (window.electronAPI && typeof window.electronAPI.openFile === 'function') {
+    // 重置UI状态
+    openDetailWindows.value = [];
+    nextZIndexCounter.value = 100;
+    openWindowCascadeCounter = 0;
+    originalFilePath.value = null;
+    originalFileNameFromHandle.value = null;
+    originalFileHandle.value = null;
+
+
+    if (window.electronAPI && typeof window.electronAPI.openFile === 'function') { // Electron 环境
+        console.log("App.vue: Calling window.electronAPI.openFile()");
         try {
             const result = await window.electronAPI.openFile();
-            if (result && result.filePath && result.content) {
-                originalFilePath.value = result.filePath; 
-                fileNameForSave = result.filePath.split(/[/\\]/).pop();
-                originalFileNameFromHandle.value = fileNameForSave; // Store filename for save dialog
-                // originalFileHandle.value can be kept null if not used by Electron save
+            console.log("App.vue: Result from electronAPI.openFile:", result);
+            if (result && result.filePath && typeof result.content === 'string') {
+                originalFilePath.value = result.filePath;
+                originalFileNameFromHandle.value = result.filePath.split(/[/\\]/).pop();
                 fileContentToProcess = result.content;
             } else if (result === null) {
-                 console.log('File open dialog was cancelled (Electron).');
-                 return; // Do not proceed further
+                 console.log('App.vue: File open dialog was cancelled by user (Electron).');
+                 return;
+            } else if (result && result.error) { // 主进程返回了错误对象
+                alert('Error opening file: ' + result.error);
+                resetUIDataOnLoadFailure();
+                return;
+            }
+             else {
+                console.warn('App.vue: Unexpected or no result from electronAPI.openFile', result);
+                alert('无法打开文件或未选择文件。');
+                return;
             }
         } catch (error) {
-            console.error('Error opening file via Electron:', error);
-            alert('Error opening file: ' + (error.message || error));
+            console.error('App.vue: Error calling electronAPI.openFile:', error);
+            alert('与文件系统交互时出错: ' + (error.message || error));
             resetUIDataOnLoadFailure();
             return;
         }
-    } else if (window.showOpenFilePicker) { 
+    } else if (window.showOpenFilePicker) { // 浏览器 File System Access API (备用)
+        console.log("App.vue: Using browser File System Access API");
         try {
             const [fileHandle] = await window.showOpenFilePicker({
                 types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] }}],
                 multiple: false
             });
-            originalFileHandle.value = fileHandle; // Store for FS API save if needed
-            fileNameForSave = fileHandle.name;
-            originalFileNameFromHandle.value = fileNameForSave;
-            originalFilePath.value = fileHandle.name; // Path not directly available, use name as placeholder
-
+            originalFileHandle.value = fileHandle;
+            originalFileNameFromHandle.value = fileHandle.name;
+            // 对于FS API，我们没有直接的“原始路径”用于保存回同目录，但可以用handle尝试
             const file = await fileHandle.getFile();
             fileContentToProcess = await file.text();
         } catch (err) {
             if (err.name === 'AbortError') {
-                console.log('File picker was cancelled by the user (FS API).');
+                console.log('App.vue: File picker was cancelled by the user (FS API).');
             } else {
-                console.error('Error picking file with FS API:', err);
-                alert('Error picking file: ' + err.message);
+                console.error('App.vue: Error picking file with FS API:', err);
+                alert('选择文件出错: ' + err.message);
             }
-            return; // Do not proceed further
+            return;
         }
     } else {
-        alert('File access API not supported by this browser or environment.');
+        alert('此环境不支持文件访问API。请在Electron或现代浏览器中运行。');
         return;
     }
 
     if (fileContentToProcess !== null) {
         processFileContent(fileContentToProcess);
-        openDetailWindows.value = []; 
-        nextZIndexCounter.value = 100; 
     }
 }
 
-function processFileContent(content) { /* ... (与之前版本相同) ... */
+function processFileContent(content) {
     try {
         const jsonData = JSON.parse(content);
         Object.assign(patientInfo, defaultPatientInfo());
-        if (jsonData.PatientInfo) { 
-            for (const key in patientInfo) {
+        if (jsonData.PatientInfo) {
+           for (const key in patientInfo) {
                 if (Object.prototype.hasOwnProperty.call(jsonData.PatientInfo, key)) {
                     if (jsonData.PatientInfo[key] !== null && jsonData.PatientInfo[key] !== undefined) {
                          patientInfo[key] = jsonData.PatientInfo[key];
@@ -185,16 +263,26 @@ function processFileContent(content) { /* ... (与之前版本相同) ... */
             }
         }
         patientInfo.LastUpdateDate = new Date().toISOString().replace('T', ' ').substring(0, 19);
-        selectData.value = jsonData.SelectData && Array.isArray(jsonData.SelectData) ? JSON.parse(JSON.stringify(jsonData.SelectData)) : [];
+
+        if (jsonData.SelectData && Array.isArray(jsonData.SelectData)) {
+            selectData.value = jsonData.SelectData.map(measurement => {
+                const enrichedMeasurement = JSON.parse(JSON.stringify(measurement));
+                if (!enrichedMeasurement.DataInfo) enrichedMeasurement.DataInfo = {};
+                enrichedMeasurement.DataInfo.ventilatorType = detectVentilatorType(enrichedMeasurement.ParamField);
+                return enrichedMeasurement;
+            });
+        } else {
+            selectData.value = [];
+        }
         dataLoaded.value = true;
     } catch (error) {
         console.error("Error parsing JSON content:", error);
-        alert("Error parsing JSON file content. Please check the file format.");
+        alert("解析JSON文件内容出错，请检查文件格式。");
         resetUIDataOnLoadFailure();
     }
 }
 
-function handleIsSuitableChange({ identifier, sortNo, isSuitable }) { /* ... (与之前版本相同) ... */
+function handleIsSuitableChange({ identifier, sortNo, isSuitable }) {
     const measurementToUpdate = selectData.value.find(m => m.DataInfo.StartTime === identifier && m.DataInfo.SortNo === sortNo);
     if (measurementToUpdate) {
         measurementToUpdate.DataInfo.IsSuitable = isSuitable;
@@ -202,10 +290,11 @@ function handleIsSuitableChange({ identifier, sortNo, isSuitable }) { /* ... (�
     }
 }
 
-async function saveModifiedData() { /* ... (与之前版本相同, 使用 originalFilePath.value 或 originalFileNameFromHandle.value) ... */
+async function saveModifiedData() {
     const currentOriginalPathForSave = originalFilePath.value || originalFileNameFromHandle.value;
     if (!dataLoaded.value || !currentOriginalPathForSave) {
-        alert("No data loaded or original file reference is missing."); return;
+        alert("没有加载数据或缺少原始文件参考。");
+        return;
     }
     const completePatientInfo = { ...patientInfo };
     completePatientInfo.LastUpdateDate = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -214,17 +303,17 @@ async function saveModifiedData() { /* ... (与之前版本相同, 使用 origin
 
     if (window.electronAPI && typeof window.electronAPI.saveFile === 'function') {
         try {
-            // originalFilePath.value should be set by openFileViaElectron if using Electron IPC
-            const result = await window.electronAPI.saveFile(originalFilePath.value, jsonString); 
-            if (result && result.success) alert(`Data successfully saved as ${result.filePath}`);
+            const result = await window.electronAPI.saveFile(originalFilePath.value, jsonString); // 传递原始完整路径
+            if (result && result.success) alert(`数据已保存到 ${result.filePath}`);
             else if (result === null) console.log('Save file dialog was cancelled.');
-            else alert('Failed to save file (main process reported an issue).');
+            else if (result && result.error) alert('保存文件失败: ' + result.error);
+            else alert('保存文件失败。');
         } catch (error) {
             console.error('Error saving file via Electron:', error);
-            alert('Error saving file: ' + (error.message || error));
+            alert('保存文件出错: ' + (error.message || error));
         }
-    } else if (window.showSaveFilePicker && originalFileHandle.value) { // Fallback for browser FS API
-        let baseName = originalFileNameFromHandle.value; // Use the name from the handle
+    } else if (window.showSaveFilePicker && originalFileHandle.value) {
+        let baseName = originalFileNameFromHandle.value;
         const extension = '.json';
         if (baseName.toLowerCase().endsWith(extension)) {
             baseName = baseName.substring(0, baseName.length - extension.length);
@@ -238,33 +327,28 @@ async function saveModifiedData() { /* ... (与之前版本相同, 使用 origin
             const writable = await saveHandle.createWritable();
             await writable.write(jsonString);
             await writable.close();
-            alert(`Data successfully saved as ${saveHandle.name}`);
-        } catch (err) {
-            if (err.name === 'AbortError') console.log('Save file dialog was cancelled by the user.');
-            else {
-                console.error('Error saving file with FS API:', err);
-                alert('Error saving file: ' + err.message);
-            }
-        }
+            alert(`数据已保存为 ${saveHandle.name}`);
+        } catch (err) { /* ...错误处理... */ }
     } else {
-         alert('File saving API not supported.');
+         alert('此环境不支持文件保存API。');
     }
 }
 
 function resetUIDataOnLoadFailure() {
     Object.assign(patientInfo, defaultPatientInfo());
     selectData.value = [];
-    dataLoaded.value = true; 
+    dataLoaded.value = true; // 标记为已尝试加载，即使失败
     originalFileHandle.value = null;
     originalFileNameFromHandle.value = null;
     originalFilePath.value = null;
-    openDetailWindows.value = []; 
+    openDetailWindows.value = [];
     nextZIndexCounter.value = 100;
+    openWindowCascadeCounter = 0;
 }
 
 function openDetailWindow(measurementData) {
     if (!measurementData?.DataInfo?.StartTime) {
-        console.error("Cannot open detail window: Invalid measurement data", measurementData);
+        console.error("无法打开详情窗口: 无效的测量数据", measurementData);
         return;
     }
     const windowId = measurementData.DataInfo.StartTime;
@@ -273,44 +357,50 @@ function openDetailWindow(measurementData) {
     if (existingWindow) {
         bringToFront(windowId);
     } else {
+        const newZIndex = nextZIndexCounter.value++;
+        const newPosition = {
+            top: 50 + (openWindowCascadeCounter % 8) * 30, // 调整级联数量，避免过多重叠
+            left: 50 + (openWindowCascadeCounter % 12) * 30
+        };
+        openWindowCascadeCounter++;
+
         openDetailWindows.value.push({
             id: windowId,
-            measurementData: measurementData,
-            zIndex: nextZIndexCounter.value++,
+            measurementData: measurementData, // 包含 ventilatorType
+            zIndex: newZIndex,
+            position: newPosition
         });
     }
 }
 
 function closeDetailWindow(windowIdToClose) {
     openDetailWindows.value = openDetailWindows.value.filter(w => w.id !== windowIdToClose);
+    if (openDetailWindows.value.length === 0) {
+        openWindowCascadeCounter = 0;
+        // nextZIndexCounter.value = 100; // 可以不重置，让z-index持续增长
+    }
 }
 
 function bringToFront(windowIdToFront) {
-    const windowIndex = openDetailWindows.value.findIndex(w => w.id === windowIdToFront);
-    if (windowIndex !== -1) {
-        const windowInstance = openDetailWindows.value[windowIndex];
+    const windowInstance = openDetailWindows.value.find(w => w.id === windowIdToFront);
+    if (windowInstance) {
         windowInstance.zIndex = nextZIndexCounter.value++;
-        // Vue 3 reactivity should handle re-ordering if items are sorted by zIndex,
-        // or simply rely on browser stacking context for z-index.
-        // Forcing a re-render of just that item might be tricky or unnecessary.
     }
 }
 </script>
 
 <style>
-@import './assets/style.css'; 
+@import './assets/style.css';
 
 .detail-windows-area {
-    position: fixed; 
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100vw; /* 使用视口单位确保覆盖全屏 */
+    width: 100vw;
     height: 100vh;
-    pointer-events: none; /* 允许点击穿透到主界面，除非点到实际的窗口 */
-    z-index: 50; /* 确保这个区域在卡片之上，但在模态窗口之下 */
+    pointer-events: none;
+    z-index: 50;
 }
-
-/* 其他 App.vue 样式保持不变 */
 .actions-panel { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; }
 .actions-panel button { padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; transition: background-color 0.2s ease-in-out; }
 .actions-panel button:hover:not(:disabled) { background-color: #218838; }

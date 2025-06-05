@@ -59,19 +59,22 @@ const xAxisConfig = computed(() => {
 // Y轴配置计算
 const yAxisConfig = computed(() => {
   const values = parsedWaveData.value;
-  if (values.length === 0) {
-    return { min: 0, max: 100, stepSize: 20 }; // 合理的默认值
-  }
 
   let minVal = Math.min(...values);
   let maxVal = Math.max(...values);
 
-  const yMin = Math.floor(minVal / 500) * 500;
-  const yMax = Math.ceil(maxVal / 500) * 500;
+  const yMin = Math.floor(minVal / 100) * 100;
+  const yMax = Math.ceil(maxVal / 100) * 100;
+  
+  if (yMax <= 100) {
+	//yMax = Math.ceil(maxVal / 10) * 10;
+    return { min: 0, max: Math.ceil(maxVal / 10) * 10, stepSize: 10 }; // 合理的默认值
+  }
+  
   return {
     min: yMin, // Y轴从最小值开始
-    max: yMax, // 确保Y轴至少跨度到500，如果数据点很少
-    stepSize: 500
+    max: yMax, // 确保Y轴至少跨度到50，如果数据点很少
+    stepSize: 100
   };
 
 });
@@ -120,7 +123,7 @@ const chartOptionsRef = computed(() => ({
       ticks: { 
         stepSize: xAxisConfig.value.stepSize,
         font: {size: 10},
-        // autoSkip: true, // 线性轴通常会自动处理刻度密度
+        autoSkip: false, // 线性轴通常会自动处理刻度密度
         // maxTicksLimit: Math.ceil(xAxisConfig.value.max / xAxisConfig.value.stepSize) + 1 
       },
       grid: { display: true, color: '#f0f0f0' }
@@ -131,14 +134,15 @@ const chartOptionsRef = computed(() => ({
       max: yAxisConfig.value.max, 
       title: { 
         display: true, 
-        text: '值', 
+        text: '采样值', 
         font: {size: 12} 
       },
       ticks: {
         stepSize: yAxisConfig.value.stepSize, 
         callback: function(value) { return value.toFixed(0); },
-        font: {size: 10}
-        // count: 6, // 尝试强制6个刻度（5等分）
+        font: {size: 10},
+		autoSkip: false,
+        //count: 6, // 尝试强制6个刻度（5等分）
       },
       grid: { display: true, color: '#e0e0e0' }
     }
