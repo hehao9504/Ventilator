@@ -4,7 +4,7 @@ This application is used to show ventilator data from MNDRY Ventilator.
 
 ## Version 0.1
 
-可以读取采集的数据（JSON格式），完成的功能
+可以读取采集的数据（JSON格式），完成的功能:
 
 - 主界面：每一组 {DataInfo, ParaField, WaveField} 在主界面显示为一张卡片，如果有多组就显示多个卡片。
 - 点击每个卡片可以会弹出新窗口，显示该卡片里面的详细数据（仅简单列出）
@@ -14,7 +14,7 @@ This application is used to show ventilator data from MNDRY Ventilator.
 
 ## Version 0.2
 
-在 v0.1 的基础上增加如下功能
+在 v0.1 的基础上增加如下功能:
 
 - 点击每个卡片弹出的详细数据按照建议，将多次采集的数值数据合并为表格，便于观察
 - 波形数据也进行了合并，实现了 3 个主要参数的显示
@@ -22,4 +22,17 @@ This application is used to show ventilator data from MNDRY Ventilator.
 
 前期问题解决：前期数据的格式做了转换，的确不能读出，暂时先不处理。
 
+存在问题：呼吸模型（VentMode）的数据格式还没有搞清楚，还需要进一步调研
+
+## Version 0.21
+
+在前面版本上进行了若干调整:
+
+- 界面调整
+* 详细窗口的某些字段改为居中对齐
+* 详细窗口的标题栏添加呼吸机类型字段，便于阅读和分析
+- 波形重整：读出数据进行归一化处理
+* 迈瑞：流速值/10=实际值，压力值/100=实际值，潮气量值/10=实际值
+* 科曼：流速值/100=实际值，压力值/100=实际值，潮气量值=实际值
+* 流速（Flow），压力（Paw），潮气量（Vol）
 存在问题：呼吸模型（VentMode）的数据格式还没有搞清楚，还需要进一步调研

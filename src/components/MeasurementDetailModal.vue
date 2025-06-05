@@ -211,9 +211,9 @@ function scaleWaveValues(waveValueString, ventilatorType, waveNameKey) {
         else if (waveNameKey === 'Vent_Paw_Wave') { divisor = 100; precision = 2; }
         else if (waveNameKey === 'Vent_Vol_Wave') { divisor = 10; precision = 1; }
     } else if (ventilatorType === 'Comen') {
-        if (waveNameKey === 'Vent_Flow_Wave') { divisor = 1; precision = 2; }
+        if (waveNameKey === 'Vent_Flow_Wave') { divisor = 100; precision = 2; }
         else if (waveNameKey === 'Vent_Paw_Wave') { divisor = 100; precision = 2; }
-        else if (waveNameKey === 'Vent_Vol_Wave') { divisor = 100; precision = 0; }
+        else if (waveNameKey === 'Vent_Vol_Wave') { divisor = 1; precision = 0; }
     }
     if (divisor === 1 && precision === 0 && ventilatorType !== 'Unknown') return waveValueString;
     if (ventilatorType === 'Unknown') return waveValueString;
