@@ -1,16 +1,19 @@
 <template>
     <div
         class="detail-window-content"
-        :style="windowStyle"
+        :class="{ 'is-minimized': isMinimized }" :style="windowStyle"
         @mousedown.left="handleMouseDown"
         @click.stop
     >
         <div class="window-header" ref="headerRef">
             <span>详细数据 (记录 #{{ measurement?.DataInfo?.SortNo || 'N/A' }}) - 类型: {{ measurement?.DataInfo?.ventilatorType || '未知' }}</span>
-            <button class="window-close-button" @click="closeWindow">&times;</button>
+			<div class="window-controls">
+				<button class="window-control-btn" @click="toggleMinimize">_</button>
+				<button class="window-close-button" @click="closeWindow">&times;</button>
+			</div>
         </div>
-
-        <div class="window-body">
+		
+        <div class="window-body" v-show="!isMinimized">
             <div class="detail-section">
                 <h4>参数信息</h4>
                 <div v-if="groupedParamData.timestamps.length > 0" class="param-table-container">
@@ -115,6 +118,14 @@ const windowStyle = computed(() => ({
     zIndex: props.zIndex,
     pointerEvents: 'auto',
 }));
+
+// ... 在 emit 定义之后
+const isMinimized = ref(false);
+
+function toggleMinimize() {
+    isMinimized.value = !isMinimized.value;
+}
+
 function closeWindow() { emit('close', props.windowId); }
 function handleMouseDown(event) {
     emit('bringToFront', props.windowId);
@@ -336,6 +347,21 @@ const scaledVentVolWave = computed(() => getConcatenatedAndScaledWaveData('Vent_
 	pointer-events: auto; 
 	}
 	
+/* 当窗口最小化时，它会获得这个class */
+.detail-window-content.is-minimized {
+    height: auto !important; /* 高度自适应，只包裹标题栏 */
+    width: 250px !important;  /* 使用一个固定的较小宽度 */
+	min-height: 0; /* 最小化时取消最小高度限制 */
+    resize: none; /* 最小化时禁用调整大小 */
+}
+
+/* 标题栏按钮容器 */
+.window-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px; /* 按钮间距 */
+}
+	
 .window-header { 
 	display: flex; 
 	justify-content: space-between; 
@@ -351,9 +377,40 @@ const scaledVentVolWave = computed(() => getConcatenatedAndScaledWaveData('Vent_
 	}
 	
 .window-header span { font-weight: bold; color: #333; font-size: 0.95em; }
-.window-close-button { background: none; border: none; font-size: 1.6em; line-height: 1; cursor: pointer; color: #666; padding: 0 5px; }
-.window-close-button:hover { color: #000; }
+
+.window-close-button,
+.window-control-btn { 
+	background: none;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	width: 24px;
+	height: 24px;
+	font-size: 1.5em;
+	line-height: 1;
+	cursor: pointer;
+	color: #666;
+	padding: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	transition: background-color 0.2s;	
+}
+
+
+.window-close-button:hover 
+.window-control-btn:hover { 
+	color: #000; 
+	background-color: #0000001a;
+}
+
+.window-control-btn {
+    font-family: monospace;
+    font-weight: bold;
+}
+
 .window-body { padding: 15px; overflow-y: auto; overflow-x: hidden; flex-grow: 1; display: flex; flex-direction: column; }
+
+
 
 .detail-section { margin-bottom: 20px; }
 .detail-section:last-child { margin-bottom: 0; }

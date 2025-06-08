@@ -64,16 +64,18 @@
             </div>
 
             <div class="detail-windows-area">
-                <MeasurementDetailModal
-                    v-for="(windowData) in openDetailWindows"
-                    :key="windowData.id"
-                    :measurement="windowData.measurementData"
-                    :window-id="windowData.id"
-                    :z-index="windowData.zIndex"
-                    :initial-position="windowData.position"
-                    @close="closeDetailWindow"
-                    @bringToFront="bringToFront"
-                />
+				<template v-for="(windowData) in openDetailWindows" :key="windowData.id">
+					<MeasurementDetailModal
+						v-for="(windowData) in openDetailWindows"
+						:key="windowData.id"
+						:measurement="windowData.measurementData"
+						:window-id="windowData.id"
+						:z-index="windowData.zIndex"
+						:initial-position="windowData.position"
+						@close="closeDetailWindow"
+						@bringToFront="bringToFront"
+					/>
+				</template>
             </div>
         </main>
     </div>
