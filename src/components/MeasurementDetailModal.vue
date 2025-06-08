@@ -58,7 +58,7 @@
             </div>
 
             <div class="detail-section">
-                <h4>波形图 ({{ventilatorType}} WaveField)</h4>
+                <h4>波形图 ({{measurement.DataInfo.ventilatorType}})</h4>
                 <div v-if="scaledVentPawWave.data" class="wave-chart-item">
                     <WaveformChart :wave-name="scaledVentPawWave.name" :wave-string-data="scaledVentPawWave.data" chart-height="200px" />
                     <p v-if="scaledVentPawWave.sampleRateInfo" class="wave-sample-rate">采样率参考: {{ scaledVentPawWave.sampleRateInfo }}</p>
@@ -86,6 +86,12 @@
 <script setup>
 import WaveformChart from './WaveformChart.vue';
 import { defineProps, defineEmits, computed, ref, onBeforeUnmount } from 'vue';
+import { Chart } from 'chart.js';
+import { Filler } from 'chart.js';
+
+Chart.register( 
+	Filler
+ );
 
 const props = defineProps({
     measurement: {
@@ -151,6 +157,7 @@ function formatTime(dateTimeString) {
     catch (e) { return dateTimeString; }
 }
 const desiredParamsConfig = [
+	{ name: 'SET_VENTMODE', displayName: '呼吸模式',     type: 'setting' }, 
     { name: 'SET_OXYGEN', 	displayName: '氧浓度',       type: 'setting' },
 	{ name: 'SET_TV', 		displayName: '潮气量',       type: 'setting' },	
 	{ name: 'SET_PINSP',  	displayName: '吸气压力',     type: 'setting' },
@@ -158,13 +165,45 @@ const desiredParamsConfig = [
     { name: 'SET_RR',     	displayName: '呼吸频率', 	    type: 'setting' },
 	{ name: 'SET_TINS',   	displayName: '吸气时间',		type: 'setting' },	
 	{ name: 'SET_PEEP',   	displayName: '呼末正压',  	type: 'setting' },
+	{ name: 'SET_PSUPP',   	displayName: '支持压力',  	type: 'setting' },
 
     { name: 'PPEAK',      	displayName: '峰值压',		type: 'monitoring'},
-    { name: 'PEAP',      	displayName: '呼末正压',		type: 'monitoring'},
-    { name: 'MVE', 			displayName: '分钟通气量', 	type: 'monitoring' },
+    { name: 'PEEP',      	displayName: '呼末正压',		type: 'monitoring'},
+    { name: 'MVINSP', 		displayName: '分钟通气量', 	type: 'monitoring' },
     { name: 'VTE',        	displayName: '呼出潮气量',   	type: 'monitoring' },
-    { name: 'RATE',       	displayName: '总频率',  	type: 'monitoring' }
+    { name: 'RATE',       	displayName: '总频率',  		type: 'monitoring' }
 ];
+
+// 辅助函数：解析 SET_VENTMODE 的值
+function parseVentMode(valueString) {
+    if (typeof valueString !== 'string') {
+        return valueString; // 如果不是字符串，直接返回
+    }
+
+    if (valueString.includes('^')) {
+        const parts = valueString.split('^');
+        if (parts.length > 1) {
+            let modeName = parts[1]; // 取第二个部分
+            // 移除已知的前缀
+            if (modeName.startsWith('MNDRY_VENT_MODE_')) {
+                modeName = modeName.substring('MNDRY_VENT_MODE_'.length);
+            }
+            // 在这里您可以添加更多品牌的模式前缀移除逻辑
+            // 或者，如果第二个部分就是您想要的模式名，则不需要移除前缀
+
+            // 进一步简化常见的模式名，例如：
+            if (modeName === 'CPAP_PLUS_PS') return 'CPAP+PS';
+            return modeName;
+        }
+        return parts[0]; // 如果分割后不符合预期（例如只有一个元素或没有第二个元素），返回第一部分
+    } else {
+        // 不包含 '^'，可能是纯数字代码或其他格式
+        // 如果是纯数字代码，您可以根据映射表转换为可读名称
+        // 示例映射 (您需要提供实际的映射关系)
+        return valueString; // 如果没有映射，直接返回值
+    }
+}
+
 const groupedParamData = computed(() => {
     const paramField = props.measurement?.ParamField;
     if (!paramField || paramField.length === 0) {
@@ -179,7 +218,13 @@ const groupedParamData = computed(() => {
         group.ItemData.forEach(item => {
             if (!item || !item.Name) return;
             if (!dataMatrix[item.Name]) dataMatrix[item.Name] = {};
-            dataMatrix[item.Name][recordTime] = item.Value;
+			
+			// *** 对 SET_VENTMODE 的值进行特殊处理 ***
+			if (item.Name === 'SET_VENTMODE') {
+				dataMatrix[item.Name][recordTime] = parseVentMode(item.Value);
+			} else {
+				dataMatrix[item.Name][recordTime] = item.Value;
+			}
         });
     });
     const sortedTimestamps = Array.from(timestampsSet).sort((a, b) => {

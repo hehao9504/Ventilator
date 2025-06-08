@@ -32,6 +32,10 @@
                 <span class="label">诊断:</span>
                 <span class="value">{{ patientInfo.DiagnosisName || '-' }}</span>
             </div>
+            <div class="info-item">
+                <span class="label">呼吸机类型:</span>
+                <span class="value">{{ patientInfo.ventilatorType || '未知' }}</span>
+            </div>			
 
             <div class="actions-panel">
                 <button @click="saveModifiedData"
@@ -96,7 +100,8 @@ const defaultPatientInfo = () => ({
     LastUpdateCode: "System",
     LastUpdateName: "System",
     LastUpdateDate: "",
-    IsDeleted: false
+    IsDeleted: false,
+	ventilatorType: '' // 新增字段，用于显示呼吸机类型
 });
 
 const patientInfo = reactive({ ...defaultPatientInfo() });
@@ -166,8 +171,8 @@ function detectVentilatorType(paramFieldArray) {
             continue;
         }
     }
-    if (fiveSecondIntervals > 0 && fiveSecondIntervals >= tenSecondIntervals) return 'Mindray';
-    if (tenSecondIntervals > 0 && tenSecondIntervals > fiveSecondIntervals) return 'Comen';
+    if (fiveSecondIntervals > 0 && fiveSecondIntervals >= tenSecondIntervals) return 'Comen';
+    if (tenSecondIntervals > 0 && tenSecondIntervals > fiveSecondIntervals) return 'Mindray';
     console.warn("未能明确检测到呼吸机类型。5s间隔数:", fiveSecondIntervals, "10s间隔数:", tenSecondIntervals);
     return 'Unknown';
 }
@@ -271,6 +276,14 @@ function processFileContent(content) {
                 enrichedMeasurement.DataInfo.ventilatorType = detectVentilatorType(enrichedMeasurement.ParamField);
                 return enrichedMeasurement;
             });
+			
+			// 在处理完所有数据后，我们用第一条测量数据来检测整个文件的呼吸机类型，
+			// 并将其赋值给主界面的 patientInfo 对象。
+			if (selectData.value.length > 0 && selectData.value[0].ParamField) {
+				patientInfo.ventilatorType = detectVentilatorType(selectData.value[0].ParamField);
+			} else {
+				patientInfo.ventilatorType = 'Unknown'; // 如果没有可供分析的数据
+			}
         } else {
             selectData.value = [];
         }
@@ -351,6 +364,7 @@ function openDetailWindow(measurementData) {
         console.error("无法打开详情窗口: 无效的测量数据", measurementData);
         return;
     }
+	
     const windowId = measurementData.DataInfo.StartTime;
     const existingWindow = openDetailWindows.value.find(w => w.id === windowId);
 
