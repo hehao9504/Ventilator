@@ -1,4 +1,14 @@
 /* src/assets/style.css */
+/* --- START: 确保根元素和body占满全屏 --- */
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden; /* 防止出现不必要的水平滚动条 */
+}
+/* --- END: 添加结束 --- */
+
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -15,6 +25,9 @@ body {
 .main-container {
     display: flex;
     min-height: 100vh;
+	width: 100%;
+	flex-direction: row;
+	align-items: stretch;
 }
 
 .patient-info-panel {
@@ -28,7 +41,7 @@ body {
     overflow-y: auto;
 }
 
-.patient-info-panel h2, .measurements-panel h2 {
+.patient-info-panel h2 {
     color: #0056b3;
     text-align: center;
     margin-top: 0; /* 移除h2顶部默认边距 */
@@ -62,7 +75,6 @@ body {
     text-align: right; /* 4. 确保值本身的内容在其分配空间内右对齐 */
     /* flex-shrink: 0; 可选：防止值过长时被压缩，但通常不需要 */
 }
-/* --- 修改结束 --- */
 
 .actions-panel { /* 保存按钮的容器样式 */
     margin-top: 30px; 
@@ -88,19 +100,29 @@ body {
     cursor: not-allowed;
 }
 
-
 .measurements-panel {
     flex-grow: 1;
-    padding: 20px;
+	flex-basis: 0;
+	min-width: 0;
+	padding: 20px;
     overflow-y: auto;
     height: 100vh;
     background-color: #f9fbfd; 
 }
 
+.measurements-panel > h2,
+.measurements-panel > .no-data-message {
+	grid-column: 1/-1;
+	text-align: center; 
+	}
+
 .cards-container {
-    display: flex;
+    display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 15px; 
+	width: 100%;
+	align-content: start; 
+	align-items: start; /* <-- 新增这一行！ */
 }
 
 .no-data-message {
@@ -131,36 +153,4 @@ body {
 
 .file-loader button:hover {
     background-color: #0056b3;
-}
-
-.info-item {
-    margin-bottom: 12px;
-    font-size: 0.95em;
-    line-height: 1.6;
-}
-
-.info-item .label {
-    font-weight: bold;
-    color: #555;
-    margin-right: 5px;
-}
-
-.info-item .value {
-    color: #333;
-}
-
-.measurements-panel {
-    flex-grow: 1;
-    padding: 20px;
-    overflow-y: auto;
-    height: 100vh;
-    background-color: #f9fbfd; /* 淡色背景 */
-}
-
-.no-data-message {
-    width: 100%;
-    text-align: center;
-    padding: 20px;
-    color: #777;
-    font-style: italic;
 }

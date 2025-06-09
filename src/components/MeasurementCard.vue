@@ -90,17 +90,13 @@ function showDetails() {
     border-radius: 8px;
     padding: 15px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    /* 默认情况下，每行排列 3 个卡片 */
-    /* 父容器 .cards-container 的 gap 是 15px */
-    /* 3个卡片之间有2个15px的间隙，总共30px */
-    /* 这30px的间隙宽度需要从3个卡片的总宽度中扣除，平均每个卡片扣除 30px / 3 = 10px */
-    /* width: calc(33.333% - 10px); */
     box-sizing: border-box;
     min-width: 280px; /* 卡片的最小宽度，如果容器太窄，可能会导致换行 */
-    display: flex;
-    flex-direction: column;
+    /* display: flex;
+    flex-direction: column; */
     cursor: pointer;	
 }
+
 .measurement-card:hover {
     border-color: #007bff;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);

@@ -45,23 +45,20 @@
             </div>
         </aside>
 
-        <main class="measurements-panel">
-            <h2>Measurement Data</h2>
-            <div class="cards-container">
-                <MeasurementCard
-                    v-for="measurement in selectData"
-                    :key="measurement.DataInfo.StartTime"
-                    :measurement-data="measurement"
-                    @showDetails="openDetailWindow"
-                    @isSuitableChanged="handleIsSuitableChange"
-                />
-                <div v-if="selectData.length === 0 && dataLoaded" class="no-data-message">
-                    No measurement data found in the file, or the file is empty.
-                </div>
-                 <div v-if="!dataLoaded && selectData.length === 0" class="no-data-message">
-                    Click "Open JSON File" to load data.
-                </div>
-            </div>
+        <main class="measurements-panel cards-container"> <h2>Measurement Data</h2>
+			<MeasurementCard
+				v-for="measurement in selectData"
+				:key="measurement.DataInfo.StartTime"
+				:measurement-data="measurement"
+				@showDetails="openDetailWindow"
+				@isSuitableChanged="handleIsSuitableChange"
+			/>
+			<div v-if="selectData.length === 0 && dataLoaded" class="no-data-message">
+				No measurement data found in the file, or the file is empty.
+			</div>
+			 <div v-if="!dataLoaded && selectData.length === 0" class="no-data-message">
+				Click "Open JSON File" to load data.
+			</div>
 
             <div class="detail-windows-area">
 				<template v-for="(windowData) in openDetailWindows" :key="windowData.id">
