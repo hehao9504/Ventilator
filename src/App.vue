@@ -317,8 +317,10 @@ async function saveModifiedData() {
     const completePatientInfo = { ...patientInfo };
     completePatientInfo.LastUpdateDate = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const modifiedJsonData = { PatientInfo: completePatientInfo, SelectData: selectData.value };
-    const jsonString = JSON.stringify(modifiedJsonData, null, 2);
-
+    
+	// ✅ 使用紧凑格式保存 JSON 数据，避免额外空格导致体积膨胀
+	const jsonString = JSON.stringify(modifiedJsonData); 
+		
     if (window.electronAPI && typeof window.electronAPI.saveFile === 'function') {
         try {
             const result = await window.electronAPI.saveFile(originalFilePath.value, jsonString); // 传递原始完整路径

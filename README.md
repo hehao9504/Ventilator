@@ -4,6 +4,15 @@ This application is used to show ventilator data from MNDRY Ventilator.
 
 这个程序主要用来显示呼吸机读取的数据。
 
+## Version 0.6
+
+进行部分功能更新和调整：
+
+- 保存部分
+	修改为使用压缩格式（无缩进和空格），从而生成更紧凑的 JSON 文件，避免因格式化造成额外存储开销。
+	// 使用紧凑格式保存 JSON 数据，避免额外空格导致体积膨胀
+	const jsonString = JSON.stringify(modifiedJsonData); 
+
 ## Version 0.5
 
 进行部分功能更新和调整：
