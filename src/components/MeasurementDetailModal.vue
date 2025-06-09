@@ -8,7 +8,7 @@
         <div class="window-header" ref="headerRef">
             <span>详细数据 (记录 #{{ measurement?.DataInfo?.SortNo || 'N/A' }}) - 类型: {{ measurement?.DataInfo?.ventilatorType || '未知' }}</span>
 			<div class="window-controls">
-				<button class="window-control-btn" @click="toggleMinimize">_</button>
+				<button class="window-control-btn" @click="toggleMinimize" >_</button>
 				<button class="window-close-button" @click="closeWindow">&times;</button>
 			</div>
         </div>
@@ -88,7 +88,7 @@
 
 <script setup>
 import WaveformChart from './WaveformChart.vue';
-import { defineProps, defineEmits, computed, ref, onBeforeUnmount } from 'vue';
+import { computed, ref, onBeforeUnmount } from 'vue';
 import { Chart } from 'chart.js';
 import { Filler } from 'chart.js';
 
@@ -111,6 +111,9 @@ const headerRef = ref(null);
 const isDragging = ref(false);
 const currentPosition = ref({ top: props.initialPosition.top, left: props.initialPosition.left });
 const dragStartOffset = ref({ x: 0, y: 0 });
+
+
+
 const windowStyle = computed(() => ({
     position: 'absolute',
     top: `${currentPosition.value.top}px`,
@@ -126,12 +129,33 @@ function toggleMinimize() {
     isMinimized.value = !isMinimized.value;
 }
 
-function closeWindow() { emit('close', props.windowId); }
+// 新增一个专门用于恢复窗口的方法
+function restoreWindow() {
+    isMinimized.value = false;
+}
+
+// 使用 defineExpose 将这个方法暴露给父组件
+defineExpose({
+    restoreWindow
+});
+
+function closeWindow() { 
+	emit('close', props.windowId); 
+	}
+	
 function handleMouseDown(event) {
-    emit('bringToFront', props.windowId);
+    //emit('bringToFront', props.windowId);
     let target = event.target;
     let canDrag = false;
     if (headerRef.value && headerRef.value.contains(target) && target.tagName !== 'BUTTON') {
+		// new modification
+		emit('bringToFront', props.windowId);
+		isDragging.value = true;
+		dragStartOffset.value = { x: event.clientX - currentPosition.value.left, y: event.clientY - currentPosition.value.top };
+		document.addEventListener('mousemove', handleMouseMove);
+		document.addEventListener('mouseup', handleMouseUp);
+		event.preventDefault();
+		// end modification 
         canDrag = true;
     }
     if (event.target === headerRef.value) canDrag = true;
@@ -162,6 +186,7 @@ onBeforeUnmount(() => {
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
 });
+
 function formatTime(dateTimeString) {
     if (!dateTimeString) return '-';
     try { return dateTimeString.split(' ')[1] || dateTimeString; }

@@ -66,14 +66,14 @@
             <div class="detail-windows-area">
 				<template v-for="(windowData) in openDetailWindows" :key="windowData.id">
 					<MeasurementDetailModal
-						v-for="(windowData) in openDetailWindows"
-						:key="windowData.id"
+						v-if="windowData && windowData.id != null"
 						:measurement="windowData.measurementData"
 						:window-id="windowData.id"
 						:z-index="windowData.zIndex"
 						:initial-position="windowData.position"
 						@close="closeDetailWindow"
 						@bringToFront="bringToFront"
+						@toggle-minimize="handleToggleMinimize"
 					/>
 				</template>
             </div>
@@ -108,6 +108,8 @@ const defaultPatientInfo = () => ({
 
 const patientInfo = reactive({ ...defaultPatientInfo() });
 const selectData = ref([]);
+const detailWindowRefs = ref({}); // <--- 添加这行
+
 const dataLoaded = ref(false);
 const originalFileHandle = ref(null); // For browser File System Access API
 const originalFileNameFromHandle = ref(null); // For browser File System Access API & Electron
@@ -190,6 +192,7 @@ async function handleFileSelectAndLoad() {
     originalFilePath.value = null;
     originalFileNameFromHandle.value = null;
     originalFileHandle.value = null;
+	detailWindowRefs.value = {}; // <--- 在这里添加
 
 
     if (window.electronAPI && typeof window.electronAPI.openFile === 'function') { // Electron 环境
@@ -359,6 +362,7 @@ function resetUIDataOnLoadFailure() {
     openDetailWindows.value = [];
     nextZIndexCounter.value = 100;
     openWindowCascadeCounter = 0;
+	detailWindowRefs.value = {}; // <--- 在这里添加
 }
 
 function openDetailWindow(measurementData) {
@@ -372,6 +376,11 @@ function openDetailWindow(measurementData) {
 
     if (existingWindow) {
         bringToFront(windowId);
+		
+		const windowComponentInstance = detailWindowRefs.value[existingWindow.id];
+		if (windowComponentInstance) {
+			windowComponentInstance.restoreWindow();
+		}
     } else {
         const newZIndex = nextZIndexCounter.value++;
         const newPosition = {
@@ -384,8 +393,16 @@ function openDetailWindow(measurementData) {
             id: windowId,
             measurementData: measurementData, // 包含 ventilatorType
             zIndex: newZIndex,
-            position: newPosition
+            position: newPosition,
+			isMinimized: false
         });
+    }
+}
+
+function handleToggleMinimize(windowId) {
+    const windowToToggle = openDetailWindows.value.find(w => w.id === windowId);
+    if (windowToToggle) {
+        windowToToggle.isMinimized = !windowToToggle.isMinimized;
     }
 }
 
