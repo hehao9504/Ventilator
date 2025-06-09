@@ -157,14 +157,6 @@ body {
     background-color: #f9fbfd; /* 淡色背景 */
 }
 
-.cards-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px; /* 卡片之间的间隙 */
-    /* border: 1px solid blue; */ /* 调试时使用 */
-    /* min-height: 50px; */ /* 调试时使用 */
-}
-
 .no-data-message {
     width: 100%;
     text-align: center;
