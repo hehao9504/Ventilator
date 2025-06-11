@@ -4,6 +4,15 @@ This application is used to show ventilator data from MNDRY Ventilator.
 
 这个程序主要用来显示呼吸机读取的数据。
 
+
+## Version 0.8
+
+进行部分功能更新和调整：
+
+- 显示部分：
+	* 详细窗口不同模式下显示参数动态调整（具体调整见内部文件“界面表格2.xlsx”）
+	* 详细窗口标题“参数信息”调整为居中 
+
 ## Version 0.7
 
 进行部分功能更新和调整：

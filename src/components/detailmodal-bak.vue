@@ -107,13 +107,12 @@ const props = defineProps({
     initialPosition: { type: Object, default: () => ({ top: 50, left: 50 }) }
 });
 const emit = defineEmits(['close', 'bringToFront']);
-
-// --- 窗口交互逻辑 (拖拽, 最小化, 关闭) ---
 const headerRef = ref(null);
 const isDragging = ref(false);
-const isMinimized = ref(false);
 const currentPosition = ref({ top: props.initialPosition.top, left: props.initialPosition.left });
 const dragStartOffset = ref({ x: 0, y: 0 });
+
+
 
 const windowStyle = computed(() => ({
     position: 'absolute',
@@ -123,18 +122,21 @@ const windowStyle = computed(() => ({
     pointerEvents: 'auto',
 }));
 
+// ... 在 emit 定义之后
+const isMinimized = ref(false);
+
 function toggleMinimize() {
     isMinimized.value = !isMinimized.value;
 }
 
-// 恢复窗口的方法
+// 新增一个专门用于恢复窗口的方法
 function restoreWindow() {
     isMinimized.value = false;
 }
 
 // 使用 defineExpose 将这个方法暴露给父组件
 defineExpose({
-    restoreWindow: () => { isMinimized.value = false;}
+    restoreWindow
 });
 
 function closeWindow() { 
@@ -142,7 +144,7 @@ function closeWindow() {
 	}
 	
 function handleMouseDown(event) {
-    emit('bringToFront', props.windowId);
+    //emit('bringToFront', props.windowId);
     let target = event.target;
     let canDrag = false;
     if (headerRef.value && headerRef.value.contains(target) && target.tagName !== 'BUTTON') {
@@ -165,7 +167,6 @@ function handleMouseDown(event) {
         event.preventDefault();
     }
 }
-
 function handleMouseMove(event) {
     if (isDragging.value) {
         let newLeft = event.clientX - dragStartOffset.value.x;
@@ -191,7 +192,6 @@ function formatTime(dateTimeString) {
     try { return dateTimeString.split(' ')[1] || dateTimeString; }
     catch (e) { return dateTimeString; }
 }
-
 const desiredParamsConfig = [
 	{ name: 'SET_VENTMODE', displayName: '呼吸模式',     type: 'setting' }, 
     { name: 'SET_OXYGEN', 	displayName: '氧浓度',       type: 'setting' },
@@ -210,129 +210,13 @@ const desiredParamsConfig = [
     { name: 'RATE',       	displayName: '总频率',  		type: 'monitoring' }
 ];
 
-// --- 动态参数显示逻辑 ---
-
-// 1. 定义所有可能参数的“主列表/字典”，用于查找显示名称和类型
-// 这个列表现在取代了之前的 desiredParamsConfig
-const allPossibleParams = [
-    { name: 'SET_VENTMODE', displayName: '呼吸模式',     	type: 'setting' },
-    { name: 'SET_OXYGEN',   displayName: '氧浓度',       type: 'setting' },
-    { name: 'SET_TV',       displayName: '潮气量',       type: 'setting' },
-    { name: 'SET_PINSP',  	displayName: '吸气压力',     	type: 'setting' },
-    { name: 'SET_SIMVRR',   displayName: 'SIMV呼吸频率', 	type: 'setting' },
-    { name: 'SET_RR',     	displayName: '呼吸频率',     	type: 'setting' },
-    { name: 'SET_TINS',   	displayName: '吸气时间',     	type: 'setting' },
-    { name: 'SET_PEEP',   	displayName: '呼末正压',     	type: 'setting' },
-    { name: 'SET_PSUPP',  	displayName: '压力支持',     	type: 'setting' },
-    { name: 'FSPN',       	displayName: '自主呼吸频率',  type: 'monitoring'},
-    { name: 'MVE',        	displayName: '分钟通气量',	type: 'monitoring'},
-	{ name: 'PPEAK',      	displayName: '峰值压',     	type: 'monitoring'},
-    { name: 'PPLAT',      	displayName: '平台压',       type: 'monitoring'},
-    { name: 'RATE',       	displayName: '总频率',       type: 'monitoring'},
-    { name: 'VTE',        	displayName: '呼出潮气量',   	type: 'monitoring'},
-	{ name: 'PEEP',       	displayName: '呼末正压',   	type: 'monitoring'},
-    { name: 'MVINSP',       displayName: '分钟通气量',  	type: 'monitoring'},
-    // 在这里添加您所有可能需要显示的参数
-];
-
-// 2. 模式代码到标准模式名称的映射表
-const ventModeCodeToNameMap = {
-    'SIMVPC': 'SIMV(PC)',
-    'CPAP_PLUS_PS': 'CPAP+PS',
-    'SIMVVC': 'SIMV(VC)',
-    'VACV': 'V-A/C',
-    'PACV': 'P-A/C',
-    'PRVC': 'PRVC',
-    'SIMVPC_PLUS_PRVC': 'SIMV(PC)+PRVC',
-    'DUOLEVEL': 'DuoLevel',
-    'AMVV': 'AMV',
-    '5116': 'V-A/C',
-    '5117': 'P-A/C',
-    '5118': 'SIMV(VC)',
-    '5119': 'SIMV(PC)',
-    '5120': 'CPAP+PS',
-};
-
-// 3. 定义动态显示规则
-const modeParamMap = {
-    'Mindray': {
-        'CPAP+PS': {
-            setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP', 'SET_PSUPP'], 
-            monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
-        },
-		'SIMV(PC)': { // 使用标准化的模式名 "SIMV(PC)" 作为键
-		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP',  'SET_PINSP', 'SET_PSUPP', 'SET_TINS'], 
-		    monitoring: ['FSPN', 'MVE', 'PPEAK', 'PPLAT', 'RATE', 'VTE']
-		},
-		'SIMV(VC)': { // 使用标准化的模式名 "SIMV(VC)" 作为键
-		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP',  'SET_PSUPP', 'SET_TINS', 'SET_TV'], 
-		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
-		},
-		'V-A/C': { // 使用标准化的模式名 "V-A/C" 作为键
-		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP', 'SET_RR', 'SET_TINS', 'SET_TV'], 
-		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
-		},
-		'P-A/C': { // 使用标准化的模式名 "P-A/C" 作为键
-		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP', 'SET_PINSP', 'SET_RR', 'SET_TINS'], 
-		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
-		},
-		'PRVC': { // 使用标准化的模式名 "PRVC" 作为键
-		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP', 'SET_RR', 'SET_TINS', 'SET_TV'], 
-		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
-		},
-		'SIMV(PC)+PRVC': { // 使用标准化的模式名 "SIMV(PC)+PRVC" 作为键
-		    setting: ['SET_VENTMODE', 'SET_TINS', 'SET_TV'], 
-		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
-		},
-		'DUOLEVEL': { // 使用标准化的模式名 "DUOLEVEL" 作为键
-		    setting: ['SET_VENTMODE', 'SET_RR', 'SET_TINS'], 
-		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
-		},
-		'AMV': { // 使用标准化的模式名 "AMV" 作为键
-		    setting: ['SET_VENTMODE'], 
-		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
-		},
-        // 在此添加更多迈瑞呼吸机的模式及其参数规则
-		
-    },
-    'Comen': {
-        'CPAP+PS': { // 使用标准化的模式名 "CPAP+PS" 作为键
-            setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP', 'SET_PSUPP'], 
-            monitoring: ['FSPN', 'MVE', 'PPEAK', 'PPLAT', 'RATE', 'VTE']
-        },
-		'SIMV(PC)': { // 使用标准化的模式名 "SIMV(PC)" 作为键
-		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP',  'SET_PINSP', 'SET_PSUPP', 'SET_SIMVRR', 'SET_TINS'], 
-		    monitoring: ['FSPN', 'MVE', 'PPEAK', 'PPLAT', 'RATE', 'VTE']
-		},
-		'SIMV(VC)': { // 使用标准化的模式名 "SIMV(VC)" 作为键
-		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP',  'SET_PSUPP', 'SET_SIMVRR', 'SET_TINS', 'SET_TV'], 
-		    monitoring: ['FSPN', 'MVE', 'PPEAK', 'PPLAT', 'RATE', 'VTE']
-		},
-		'V-A/C': { // 使用标准化的模式名 "V-A/C" 作为键
-		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP', 'SET_RR', 'SET_TV'], 
-		    monitoring: ['FSPN', 'MVE', 'PPEAK', 'PPLAT', 'RATE', 'VTE']
-		},
-		'P-A/C': { // 使用标准化的模式名 "P-A/C" 作为键
-		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP', 'SET_PINSP', 'SET_RR'], 
-		    monitoring: ['FSPN', 'MVE', 'PPEAK', 'PPLAT', 'RATE', 'VTE']
-		},
-        // 在此添加更多科曼呼吸机的模式及其参数规则
-		
-    },
-    'Default': { // 当找不到特定规则时的默认显示列表
-        setting: ['SET_VENTMODE'],
-        monitoring: ['FSPN', 'MVE', 'PPEAK', 'PPLAT', 'RATE', 'VTE']
-    }
-};
-
-// 4. 解析 SET_VENTMODE 的值
+// 辅助函数：解析 SET_VENTMODE 的值
 function parseVentMode(valueString) {
     if (typeof valueString !== 'string') {
         return valueString; // 如果不是字符串，直接返回
     }
 	
 	 // 定义模式代码到显示名称的映射表
-	 /*
 	const modeCodeMap = {
 		// ^ 分隔格式解析后的键名 (通常是提取的模式简称)
 		'CPAP_PLUS_PS': 'CPAP+PS',
@@ -354,7 +238,6 @@ function parseVentMode(valueString) {
 		'5120': 'CPAP+PS',
 		// ... 在此添加更多代码和其对应的显示名称 ...
 	};
-	*/
 
 	let lookupKey = valueString; // 使用 let 声明变量，并默认用原始值作为查找键
 	
@@ -364,37 +247,32 @@ function parseVentMode(valueString) {
         if (parts.length > 1) {
             let modeName = parts[1]; // 取第二个部分
             // 移除已知的前缀
-			const prefixesToRemove = ['MNDRY_VENT_MODE_'];
-			for (const prefix of prefixesToRemove) {
-				if (modeName.startsWith('MNDRY_VENT_MODE_')) {
-					modeName = modeName.substring('MNDRY_VENT_MODE_'.length);
-				}
-			}
+            if (modeName.startsWith('MNDRY_VENT_MODE_')) {
+                modeName = modeName.substring('MNDRY_VENT_MODE_'.length);
+            }
             lookupKey = modeName;
         }
     } else {
-        lookupKey = valueString; 
+        // 不包含 '^'，可能是纯数字代码或其他格式
+        // 如果是纯数字代码，您可以根据映射表转换为可读名称
+        // 示例映射 (您需要提供实际的映射关系)
+        lookupKey = valueString; // 如果没有映射，直接返回值
     }
 	
 	 // 2. 使用最终确定的 lookupKey 在映射表中查找
-	 /*
 	if (modeCodeMap.hasOwnProperty(lookupKey)) {
 		return modeCodeMap[lookupKey]; // 如果找到，返回映射后的友好名称
 	}
 	
 	// 3. 如果在映射表中没有找到，返回我们处理过的查找键或原始值作为备用
 	return lookupKey;
-	*/
-    return ventModeCodeToNameMap[lookupKey] || lookupKey;
 }
 
-// 5. 重构 groupedParamData 计算属性
 const groupedParamData = computed(() => {
     const paramField = props.measurement?.ParamField;
     if (!paramField || paramField.length === 0) {
         return { timestamps: [], displayParams: { setting: [], monitoring: [], waveRelated: [] }, dataMatrix: {} };
     }
-	
     const timestampsSet = new Set();
     const dataMatrix = {};
     paramField.forEach(group => {
@@ -413,14 +291,11 @@ const groupedParamData = computed(() => {
 			}
         });
     });
-    
-	/*
-	const sortedTimestamps = Array.from(timestampsSet).sort((a, b) => {
+    const sortedTimestamps = Array.from(timestampsSet).sort((a, b) => {
         const dateA = new Date(a).getTime(); const dateB = new Date(b).getTime();
         if (isNaN(dateA) || isNaN(dateB)) return 0;
         return dateA - dateB;
     });
-
     const displayParams = { setting: [], monitoring: [], waveRelated: [] };
     desiredParamsConfig.forEach(config => {
         if (dataMatrix[config.name]) {
@@ -429,52 +304,6 @@ const groupedParamData = computed(() => {
             else if (config.type === 'waveRelated') displayParams.waveRelated.push(config);
         }
     });
-	*/
-    
-	const sortedTimestamps = Array.from(timestampsSet).sort((a, b) => new Date(a) - new Date(b));
-	
-	    const paramNamesToShow = new Set();
-	    const ventType = props.measurement?.DataInfo?.ventilatorType || 'Unknown';
-	    const parsedVentModes = {}; // 存储每个时间点解析后的模式名
-	    let useDefaultRule = true;
-	
-	    sortedTimestamps.forEach(ts => {
-	        const rawModeValue = dataMatrix['SET_VENTMODE']?.[ts];
-	        if (rawModeValue) {
-	            const parsedMode = parseVentMode(rawModeValue);
-	            parsedVentModes[ts] = parsedMode;
-	            const rules = modeParamMap[ventType]?.[parsedMode];
-	
-	            if (rules) {
-	                useDefaultRule = false;
-	                rules.setting.forEach(name => paramNamesToShow.add(name));
-	                rules.monitoring.forEach(name => paramNamesToShow.add(name));
-	            }
-	        }
-	    });
-	    
-	    if (useDefaultRule && modeParamMap['Default']) {
-	        modeParamMap['Default'].setting.forEach(name => paramNamesToShow.add(name));
-	        modeParamMap['Default'].monitoring.forEach(name => paramNamesToShow.add(name));
-	    }
-	    
-	    const displayParams = { setting: [], monitoring: [], waveRelated: [] };
-	    const masterConfigMap = new Map(allPossibleParams.map(p => [p.name, p]));
-	
-	    paramNamesToShow.forEach(name => {
-	        const config = masterConfigMap.get(name);
-	        if (config && dataMatrix[name]) {
-	            if (config.type === 'setting') displayParams.setting.push(config);
-	            else if (config.type === 'monitoring') displayParams.monitoring.push(config);
-	            else if (config.type === 'waveRelated') displayParams.waveRelated.push(config);
-	        }
-	    });
-	
-	    const orderMap = new Map(allPossibleParams.map((p, i) => [p.name, i]));
-	    const sortByMasterList = (a, b) => (orderMap.get(a.name) ?? 999) - (orderMap.get(b.name) ?? 999);
-	    displayParams.setting.sort(sortByMasterList);
-	    displayParams.monitoring.sort(sortByMasterList);
-		
     return { timestamps: sortedTimestamps, displayParams, dataMatrix };
 });
 
@@ -638,14 +467,14 @@ const scaledVentVolWave = computed(() => getConcatenatedAndScaledWaveData('Vent_
 
 .detail-section { margin-bottom: 20px; }
 .detail-section:last-child { margin-bottom: 0; }
-.detail-section h4 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-top: 0; margin-bottom: 10px; font-size: 1.1em; text-align: center;}
+.detail-section h4 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-top: 0; margin-bottom: 10px; font-size: 1.1em; }
 .param-table-container { overflow: auto; max-height: 600px; border: 1px solid #e0e0e0; border-radius: 4px; margin-bottom: 15px; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85em;  table-layout: fixed; }
 th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: center; white-space: nowrap; }
 td.value-cell { text-align: center; overflow: hidden; text-overflow: ellipsis; }
 th { background-color: #f0f2f5; font-weight: bold; position: sticky; top: 0; z-index: 2; }
 .sticky-col { position: sticky; background-color: #f9f9f9; z-index: 1;}
-.first-col { left: 0; width: 120px; min-width: 180px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.first-col { left: 0; width: 100px; min-width: 180px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
 th.first-col { z-index: 3; }
 td.param-name-cell { vertical-align: middle; font-weight: 500; }
 .param-category-header { font-weight: bold; background-color: #e8e8e8; text-align: center; padding-left: 10px !important; font-style: italic; color: #333; position: sticky; top: 28px; z-index: 1; }
