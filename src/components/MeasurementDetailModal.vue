@@ -224,7 +224,9 @@ const allPossibleParams = [
     { name: 'SET_TINS',   	displayName: '吸气时间',     	type: 'setting' },
     { name: 'SET_PEEP',   	displayName: '呼末正压',     	type: 'setting' },
     { name: 'SET_PSUPP',  	displayName: '压力支持',     	type: 'setting' },
-    { name: 'FSPN',       	displayName: '自主呼吸频率',  type: 'monitoring'},
+	{ name: 'SET_PHIGH',  	displayName: '高压水平',     	type: 'setting' },
+	{ name: 'SET_PLOW',  	displayName: '低压水平',     	type: 'setting' },
+	{ name: 'FSPN',       	displayName: '自主呼吸频率',  type: 'monitoring'},
     { name: 'MVE',        	displayName: '分钟通气量',	type: 'monitoring'},
 	{ name: 'PPEAK',      	displayName: '峰值压',     	type: 'monitoring'},
     { name: 'PPLAT',      	displayName: '平台压',       type: 'monitoring'},
@@ -244,7 +246,7 @@ const ventModeCodeToNameMap = {
     'PACV': 'P-A/C',
     'PRVC': 'PRVC',
     'SIMVPC_PLUS_PRVC': 'SIMV(PC)+PRVC',
-    'DUOLEVEL': 'DuoLevel',
+    'DUOLEVEL': 'DUOLEVEL',
     'AMVV': 'AMV',
     '5116': 'V-A/C',
     '5117': 'P-A/C',
@@ -281,15 +283,15 @@ const modeParamMap = {
 		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
 		},
 		'SIMV(PC)+PRVC': { // 使用标准化的模式名 "SIMV(PC)+PRVC" 作为键
-		    setting: ['SET_VENTMODE', 'SET_TINS', 'SET_TV'], 
+		    setting: ['SET_VENTMODE',  'SET_OXYGEN', 'SET_PEEP', 'SET_PSUPP', 'SET_TINS', 'SET_TV'], 
 		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
 		},
 		'DUOLEVEL': { // 使用标准化的模式名 "DUOLEVEL" 作为键
-		    setting: ['SET_VENTMODE', 'SET_RR', 'SET_TINS'], 
+		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PHIGH', 'SET_PLOW', 'SET_PSUPP', 'SET_RR', 'SET_TINS'], 
 		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
 		},
 		'AMV': { // 使用标准化的模式名 "AMV" 作为键
-		    setting: ['SET_VENTMODE'], 
+		    setting: ['SET_VENTMODE', 'SET_OXYGEN', 'SET_PEEP'], 
 		    monitoring: ['FSPN', 'MVE', 'PPLAT', 'RATE', 'VTE']
 		},
         // 在此添加更多迈瑞呼吸机的模式及其参数规则
