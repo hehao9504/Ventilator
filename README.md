@@ -4,6 +4,10 @@ This application is used to show ventilator data from MNDRY Ventilator.
 
 这个程序主要用来显示呼吸机读取的数据。
 
+## Version 0.81
+
+- 弹出窗口微调：右下角的窗口调节按钮容易和右侧上下滑动条冲突，现在做了一些调整，不冲突了，但滑动条没有了。
+
 ## Version 0.8
 
 - 动态参数表微调

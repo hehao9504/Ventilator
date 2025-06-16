@@ -634,7 +634,18 @@ const scaledVentVolWave = computed(() => getConcatenatedAndScaledWaveData('Vent_
     font-weight: bold;
 }
 
-.window-body { padding: 15px; overflow-y: auto; overflow-x: hidden; flex-grow: 1; display: flex; flex-direction: column; }
+.window-body { 
+	padding: 15px; 
+	overflow-y: auto; 
+	overflow-x: hidden; 
+	flex-grow: 1; 
+	display: flex; 
+	flex-direction: column; 
+    /* --- 新增修改 --- */
+    /* 为滚动条的出现留出空间，使其不与父容器的边角重叠 */
+    padding-right: 20px; 
+    margin-right: -20px; /* 使用负外边距来补偿内边距，保持内容宽度不变 */	
+	}
 
 
 
